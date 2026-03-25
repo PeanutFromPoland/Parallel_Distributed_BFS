@@ -1,9 +1,6 @@
-from Parallel_Distributed_BFS.utils.visualization import draw_graph
-
-
-def generate_grid_graph(size):
+def generate_grid_graph(size, start_val = (0, 0), end_val = (10, 10)):
     graph = {}
-    verticles = [(i, j) for i in range(-size, size+1) for j in range(-size, size+1)]
+    verticles = [(i, j) for i in range(-size - start_val, size+1) for j in range(-size, size+1)]
     for p in verticles:
         if p not in graph:
             graph[p] = []
@@ -15,5 +12,3 @@ def generate_grid_graph(size):
     print(graph)
     return graph
 
-
-draw_graph(generate_grid_graph(3))
