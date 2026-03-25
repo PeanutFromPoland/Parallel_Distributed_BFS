@@ -1,14 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="">
-      <change afterPath="$PROJECT_DIR$/generators/ba.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/generators/bb.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/generators/inconsistent.py" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/generators/random.py" afterDir="false" />
+    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Implemented random graph generator">
+      <change afterPath="$PROJECT_DIR$/generators/small_world.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/generators/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/__init__.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/generators/ba.py" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/generators/bb.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/bb.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/generators/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/grid.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/utils/visualization.py" beforeDir="false" afterPath="$PROJECT_DIR$/utils/visualization.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/generators/inconsistent.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/inconsistent.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/generators/random.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/random.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -48,8 +49,10 @@
   <component name="PropertiesComponent"><![CDATA[{
   "keyToString": {
     "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "Python.bb.executor": "Run",
     "Python.grid.executor": "Run",
     "Python.random.executor": "Run",
+    "Python.small_world.executor": "Run",
     "Python.visualization.executor": "Run",
     "RunOnceActivity.ShowReadmeOnStart": "true",
     "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
@@ -87,16 +90,40 @@
       <option name="presentableId" value="Default" />
       <updated>1774435172617</updated>
       <workItem from="1774435173634" duration="18000" />
-      <workItem from="1774442643647" duration="3327000" />
+      <workItem from="1774442643647" duration="6012000" />
     </task>
+    <task id="LOCAL-00001" summary="removed unnecessary import in grid.py">
+      <option name="closed" value="true" />
+      <created>1774446077637</created>
+      <option name="number" value="00001" />
+      <option name="presentableId" value="LOCAL-00001" />
+      <option name="project" value="LOCAL" />
+      <updated>1774446077637</updated>
+    </task>
+    <task id="LOCAL-00002" summary="Implemented random graph generator">
+      <option name="closed" value="true" />
+      <created>1774446091293</created>
+      <option name="number" value="00002" />
+      <option name="presentableId" value="LOCAL-00002" />
+      <option name="project" value="LOCAL" />
+      <updated>1774446091293</updated>
+    </task>
+    <option name="localTasksCounter" value="3" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
   </component>
+  <component name="VcsManagerConfiguration">
+    <MESSAGE value="removed unnecessary import in grid.py" />
+    <MESSAGE value="Implemented random graph generator" />
+    <option name="LAST_COMMIT_MESSAGE" value="Implemented random graph generator" />
+  </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
-    <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$grid.coverage" NAME="grid Coverage Results" MODIFIED="1774442691883" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/generators" />
-    <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$random.coverage" NAME="random Coverage Results" MODIFIED="1774445935045" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/generators" />
+    <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$grid.coverage" NAME="grid Coverage Results" MODIFIED="1774447204906" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/generators" />
+    <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$random.coverage" NAME="random Coverage Results" MODIFIED="1774447300933" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/generators" />
+    <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$small_world.coverage" NAME="small_world Coverage Results" MODIFIED="1774448635651" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/generators" />
+    <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$bb.coverage" NAME="bb Coverage Results" MODIFIED="1774448076797" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/generators" />
     <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$visualization.coverage" NAME="visualization Coverage Results" MODIFIED="1774445932831" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/utils" />
   </component>
 </project>

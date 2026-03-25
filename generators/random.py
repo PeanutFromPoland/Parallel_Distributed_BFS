@@ -3,7 +3,7 @@ import random
 from utils import draw_graph
 
 
-def generate_random_graph(size, threshold=0.5, consistency=True, start_val=1, unidirectional=True):
+def generate_random_graph(size, threshold=0.5, consistency=True, start_val=1, unidirectional=True, seed=42):
     nodes = list(range(start_val, start_val + size))
     graph = {node: [] for node in nodes}
 
@@ -17,6 +17,7 @@ def generate_random_graph(size, threshold=0.5, consistency=True, start_val=1, un
             graph[u].append(v)
             graph[v].append(u) if unidirectional else None
 
+    random.seed(seed)
     if consistency and size > 1:
         shuffled = nodes[:]
         random.shuffle(shuffled)
