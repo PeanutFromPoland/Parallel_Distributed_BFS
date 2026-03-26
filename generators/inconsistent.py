@@ -3,7 +3,7 @@ import random
 from . import *
 
 def generate_inconsistent_graph(start_val, parts_count=1, seed=42, graph_size_range=(10, 100)):
-    functions = [generate_grid_graph, generate_random_graph, generate_ba_graph, generate_bb_graph]
+    functions = [generate_grid_graph, generate_random_graph, generate_bb_graph, generate_small_world_graph]
     random.seed(seed)
     random.shuffle(functions)
 

@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="ChangeListManager">
-    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Implemented random graph generator">
-      <change afterPath="$PROJECT_DIR$/generators/small_world.py" afterDir="false" />
+    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Merge branch 'feature/graph_generators'&#10;&#10;# Conflicts:&#10;#&#9;.idea/Parallel_Distributed_BFS.iml">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/generators/__init__.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/__init__.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/generators/ba.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/generators/bb.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/bb.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/generators/grid.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/grid.py" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/generators/inconsistent.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/inconsistent.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/generators/random.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/random.py" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/generators/small_world.py" beforeDir="false" afterPath="$PROJECT_DIR$/generators/small_world.py" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -46,28 +42,28 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent"><![CDATA[{
-  "keyToString": {
-    "ModuleVcsDetector.initialDetectionPerformed": "true",
-    "Python.bb.executor": "Run",
-    "Python.grid.executor": "Run",
-    "Python.random.executor": "Run",
-    "Python.small_world.executor": "Run",
-    "Python.visualization.executor": "Run",
-    "RunOnceActivity.ShowReadmeOnStart": "true",
-    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
-    "RunOnceActivity.git.unshallow": "true",
-    "RunOnceActivity.typescript.service.memoryLimit.init": "true",
-    "ai.playground.ignore.import.keys.banner.in.settings": "true",
-    "dart.analysis.tool.window.visible": "false",
-    "git-widget-placeholder": "feature/graph__generators",
-    "last_opened_file_path": "C:/Users/haloj/OneDrive - Wojskowa Akademia Techniczna/Wypracowania/W_Semestr VIII/ORR/Parallel_Distributed_BFS",
-    "nodejs_package_manager_path": "npm",
-    "settings.editor.selected.configurable": "vcs.Git",
-    "show.migrate.to.gradle.popup": "false",
-    "vue.rearranger.settings.migration": "true"
+  <component name="PropertiesComponent">{
+  &quot;keyToString&quot;: {
+    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
+    &quot;Python.bb.executor&quot;: &quot;Run&quot;,
+    &quot;Python.grid.executor&quot;: &quot;Run&quot;,
+    &quot;Python.random.executor&quot;: &quot;Run&quot;,
+    &quot;Python.small_world.executor&quot;: &quot;Run&quot;,
+    &quot;Python.visualization.executor&quot;: &quot;Run&quot;,
+    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.git.unshallow&quot;: &quot;true&quot;,
+    &quot;RunOnceActivity.typescript.service.memoryLimit.init&quot;: &quot;true&quot;,
+    &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
+    &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
+    &quot;last_opened_file_path&quot;: &quot;C:/Users/haloj/OneDrive - Wojskowa Akademia Techniczna/Wypracowania/W_Semestr VIII/ORR/Parallel_Distributed_BFS&quot;,
+    &quot;nodejs_package_manager_path&quot;: &quot;npm&quot;,
+    &quot;settings.editor.selected.configurable&quot;: &quot;vcs.Git&quot;,
+    &quot;show.migrate.to.gradle.popup&quot;: &quot;false&quot;,
+    &quot;vue.rearranger.settings.migration&quot;: &quot;true&quot;
   }
-}]]></component>
+}</component>
   <component name="RecentsManager">
     <key name="MoveFile.RECENT_KEYS">
       <recent name="C:\Users\haloj\OneDrive - Wojskowa Akademia Techniczna\Wypracowania\W_Semestr VIII\ORR\Parallel_Distributed_BFS\tests\graphs" />
@@ -91,6 +87,7 @@
       <updated>1774435172617</updated>
       <workItem from="1774435173634" duration="18000" />
       <workItem from="1774442643647" duration="6012000" />
+      <workItem from="1774451518540" duration="6000" />
     </task>
     <task id="LOCAL-00001" summary="removed unnecessary import in grid.py">
       <option name="closed" value="true" />
@@ -108,11 +105,30 @@
       <option name="project" value="LOCAL" />
       <updated>1774446091293</updated>
     </task>
-    <option name="localTasksCounter" value="3" />
+    <task id="LOCAL-00003" summary="Merge branch 'feature/graph_generators'&#10;&#10;# Conflicts:&#10;#&#9;.idea/Parallel_Distributed_BFS.iml">
+      <option name="closed" value="true" />
+      <created>1774448922573</created>
+      <option name="number" value="00003" />
+      <option name="presentableId" value="LOCAL-00003" />
+      <option name="project" value="LOCAL" />
+      <updated>1774448922573</updated>
+    </task>
+    <option name="localTasksCounter" value="4" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
     <option name="version" value="3" />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="VcsManagerConfiguration">
     <MESSAGE value="removed unnecessary import in grid.py" />

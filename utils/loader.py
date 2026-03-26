@@ -16,8 +16,13 @@ def import_from_txt(name):
 
     with open(name, 'r', encoding='utf-8') as file:
         lines = file.readlines()
-        for line in lines:
+        graph = {}
+        for line in lines[1:]:
             nums = line.split(' ')
             p0, p1 = nums[0:len(nums)//2 - 1], nums[len(nums)//2: -1]
             p0, p1 = tuple(int(i) for i in p0), tuple(int(i) for i in p1)
             print(p0, p1)
+            if p0 not in graph:
+                graph[p0] = []
+            graph[p0].append(p1)
+    return graph
