@@ -4,23 +4,46 @@ from collections import deque
 from utils import draw_graph
 
 
-def bfs(graph, start = None):
-    time_start = time.time()
-    unvisited = sorted({key for key in graph.keys()}, key = lambda x: x[0])
+def bfs(graph, start):
+    """
+    BFS od 'start'. Zwraca dict {node: distance}.
+    Sąsiadów sortujemy, żeby wynik był deterministyczny.
+    """
+    dist = {start: 0}
+    queue = deque([start])
+    while queue:
+        node = queue.popleft()
+        print(node)
+        for neighbor in sorted(graph[node]):
+            if neighbor not in dist:
+                dist[neighbor] = dist[node] + 1
+                queue.append(neighbor)
+    return dist
 
-    while unvisited:
-        start = unvisited[0]
-        unvisited.remove(unvisited[0])
-        queue = deque([start])
-        while queue:
-            node = queue.popleft()
-            print(node)
-            for neighbor in graph[node]:
-                if neighbor in unvisited:
-                    unvisited.remove(neighbor)
-                    queue.append(neighbor)
 
-    print(f"Graph processed in: {(time.time() - time_start):.4f}")
+def bfs_all_components(graph):
+    """
+    BFS po wszystkich komponentach spójności
+    (zaczynając od wierzchołka o najmniejszym numerze w każdym).
+
+    Zwraca:
+        components: [(start, {node: dist}), ...]
+        total_time: łączny czas BFS (sekundy)
+    """
+    visited_global = set()
+    components = []
+
+    t0 = time.perf_counter()
+
+    for start in sorted(graph.keys()):
+        if start in visited_global:
+            continue
+        dist = bfs(graph, start)
+        visited_global.update(dist.keys())
+        components.append((start, dist))
+
+    total_time = time.perf_counter() - t0
+    return components, total_time
 
 graph = {
     'A': ['B', 'C'],
@@ -34,4 +57,4 @@ graph = {
     'I': ['G']
 }
 draw_graph(graph)
-bfs(graph)
+bfs_all_components(graph)
