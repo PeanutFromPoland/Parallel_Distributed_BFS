@@ -1,37 +1,35 @@
 import time
 from collections import deque
 
-from generators import generate_grid_graph
-from utils import draw_graph, import_from_txt, export_to_txt
+from utils import draw_graph
 
 
-def bfs(graph, start):
+def bfs(graph, start = None):
     time_start = time.time()
-    queue = deque([start])
-    visited = {start}
-    while queue:
-        node = queue.popleft()
-        print(node, graph[node])
-        for neighbor in graph[node]:
-            if neighbor not in visited:
-                visited.add(neighbor)
-                queue.append(neighbor)
+    unvisited = {key for key in graph.keys()}
+    while unvisited:
+        start = unvisited.pop()
+        queue = deque([start])
+        while queue:
+            node = queue.popleft()
+            print(node)
+            for neighbor in graph[node]:
+                if neighbor in unvisited:
+                    unvisited.remove(neighbor)
+                    queue.append(neighbor)
 
-        # print(node, queue, visited)
     print(f"Graph processed in: {(time.time() - time_start):.4f}")
 
 graph = {
     'A': ['B', 'C'],
-    'B': ['D', 'E'],
-    'C': ['F', 'G'],
-    'D': ['E'],
-    'E': ['F'],
-    'F': ['G'],
-    'G': ['H'],
-    'H': ['I'],
-    'I': []
+    'B': ['A', 'D', 'E', 'F'],
+    'C': ['A'],
+    'D': ['B'],
+    'E': ['B'],
+    'F': ['B'],
+    'G': ['H', 'I'],
+    'H': ['G'],
+    'I': ['G']
 }
-import_from_txt("graph.txt")
-
-# draw_graph(generate_grid_graph(3))
-# bfs(generate_grid_graph(3), (0, 0))
+draw_graph(graph)
+bfs(graph)
