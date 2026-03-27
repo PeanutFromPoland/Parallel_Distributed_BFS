@@ -12,7 +12,7 @@ import time
 import itertools
 from collections import deque
 
-from baseline import bfs
+from baseline import bfs, bfs_all_components
 
 # ── Konfiguracja ─────────────────────────────────────────────────────
 SIZES = ["small", "medium", "large"]
