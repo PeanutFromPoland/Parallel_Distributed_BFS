@@ -140,51 +140,68 @@ Należy wykonać:
 ### 1.6. Czego świadomie nie robimy
 
 - Nie uwzględniamy wag krawędzi i wierzchołków
-- Nie implementujemy algorytmu dla grafów niespójnych
 
 ## 2. Ryzyka na starcie
 
-| Ryzyko | Dlaczego jest istotne | Jak będzie ograniczane |
-| --- | --- | --- |
-| [uzupełnić] | [uzupełnić] | [uzupełnić] |
-| [uzupełnić] | [uzupełnić] | [uzupełnić] |
+| Ryzyko                                    | Dlaczego jest istotne                                                                          | Jak będzie ograniczane                                                                                               |
+|-------------------------------------------|------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------|
+| Problemy z komunikacją pomiędzy procesami | Bardzo znacząco może spowolnić pracę algorytmu, czyniąc implementację rozproszoną bezużyteczną | Procesy dostaną osobne części grafu, aby zostały one osobno przetworzone, w celu ograniczenia komunikacji do minimum |
 
 ## 3. Plan danych i skali problemu
 
 ### 3.1. Dane wejściowe
 
-| Zestaw | Opis | Rozmiar | Do czego służy |
-| --- | --- | --- | --- |
-| Small | [uzupełnić] | [uzupełnić] | test poprawności |
-| Medium | [uzupełnić] | [uzupełnić] | pierwszy benchmark |
-| Large | [uzupełnić] | [uzupełnić] | analiza skalowania |
+| Zestaw | Opis                                                              | Rozmiar                    | Do czego służy |
+| --- |-------------------------------------------------------------------|----------------------------| --- |
+| Small | Grafy losowe, Small World, bezskalowe oraz typu grid + kombinacje | Kilkadziesiąt wierzchołków | test poprawności |
+| Medium | Grafy losowe, Small World, bezskalowe oraz typu grid + kombinacje | Kilkaset wierzchołków      | pierwszy benchmark |
+| Large | Grafy losowe, Small World, bezskalowe oraz typu grid + kombinacje | Kilka tysięcy wierzchołków | analiza skalowania |
 
 ### 3.2. Parametry skalowania
 
-- Co będzie zwiększane: [np. liczba rekordów / liczba prób / rozmiar obrazu / liczba zadań]
-- Jakie poziomy skali będą testowane: [uzupełnić]
+- Co będzie zwiększane: Liczba wierzchołków
+- Jakie poziomy skali będą testowane: kilkadziesiąt, kilkaset i kilka tysięcy wierzchołków
 
 ## 4. Wersja sekwencyjna
 
 ### 4.1. Opis rozwiązania
 
-[krótki opis logiki wersji referencyjnej]
+Algorytm BFS wybiera pierwszy wierzchołek z listy sąsiedztwa 
+i od tego miejsca odwiedza po kolei swoich sąsiadów. 
+Czynność powtarzana jest aż do odwiedzenia ostatniego wierzchołka. 
+Jeżeli zostałyby wierzchołki nieodwiedzone, to 
 
 ### 4.2. Sposób uruchomienia
 
 ```bash
-# [uzupełnić]
+python baseline.py
 ```
 
 ### 4.3. Test poprawności
 
-- Jak uruchomić test: [uzupełnić]
-- Wynik testu: [uzupełnić]
+Uruchomienie testu
+```bash
+python generate_graphs.py # jeżeli nie wygenerowano grafów
+python main.py
+```
+Wynik testu (komunikat podsumowujący): 
+```bash
+----------------------------------------------------------------------------------------------------
+
+  Łączny czas BFS (spójne):      1.1303s
+  Łączny czas BFS (niespójne):   2.1735s
+  Łączny czas BFS (wszystkie):   3.3038s
+  Liczba grafów:                 60
+
+  [OK] WSZYSTKIE TESTY POPRAWNOSCI ZALICZONE
+====================================================================================================
+
+```
 
 ### 4.4. Ograniczenia baseline'u
 
-- [uzupełnić]
-- [uzupełnić]
+- Algorytm ten powinien być używany dla grafów nieskierowanych, ponieważ krawędzie skierowane mogą zostać potraktowane jako krawędzie nieistniejące
+- Algorytm nie obliczy 
 
 ## 5. Plan wersji równoległej
 
