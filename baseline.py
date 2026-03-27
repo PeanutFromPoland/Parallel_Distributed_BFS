@@ -13,7 +13,6 @@ def bfs(graph, start):
     queue = deque([start])
     while queue:
         node = queue.popleft()
-        print(node)
         for neighbor in sorted(graph[node]):
             if neighbor not in dist:
                 dist[neighbor] = dist[node] + 1
