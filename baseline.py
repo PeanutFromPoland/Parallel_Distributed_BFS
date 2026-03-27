@@ -6,9 +6,11 @@ from utils import draw_graph
 
 def bfs(graph, start = None):
     time_start = time.time()
-    unvisited = {key for key in graph.keys()}
+    unvisited = sorted({key for key in graph.keys()}, key = lambda x: x[0])
+
     while unvisited:
-        start = unvisited.pop()
+        start = unvisited[0]
+        unvisited.remove(unvisited[0])
         queue = deque([start])
         while queue:
             node = queue.popleft()
