@@ -201,28 +201,47 @@ Wynik testu (komunikat podsumowujący):
 ### 4.4. Ograniczenia baseline'u
 
 - Algorytm ten powinien być używany dla grafów nieskierowanych, ponieważ krawędzie skierowane mogą zostać potraktowane jako krawędzie nieistniejące
-- Algorytm nie obliczy 
-
 ## 5. Plan wersji równoległej
 
 ### 5.1. Co dokładnie będzie równoleglone
 
-[opis fragmentu obliczeń, który ma być podzielony]
+Równoleglona będzie faza ekspansji bieżącego frontieru w pojedynczej warstwie BFS. Frontier to zbiór wierzchołków należących do bieżącej warstwy BFS, czyli tych,
+które zostały odkryte w poprzednim kroku i których sąsiedzi będą teraz przeglądani.
+Dla każdego wierzchołka z aktualnego frontieru niezależnie przeglądana jest jego lista
+sąsiedztwa i wykonywana jest próba odwiedzenia sąsiadów.
+
+Ponieważ rozważane są również grafy niespójne, algorytm nie kończy działania po
+opróżnieniu frontieru dla jednej składowej. W takiej sytuacji wyszukiwany jest kolejny
+nieodwiedzony wierzchołek, od którego rozpoczynany jest BFS dla następnej składowej.
+
+Pętla po warstwach BFS w obrębie jednej składowej pozostaje sekwencyjna, ponieważ kolejna
+warstwa może zostać wyznaczona dopiero po pełnym przetworzeniu warstwy bieżącej. Równoległość
+występuje wewnątrz danej warstwy przez podział pracy między wątki zgodnie z partycjonowaniem 1D.
 
 ### 5.2. Jednostka pracy
 
-- Jednostka pracy: [uzupełnić]
-- Dlaczego ten podział ma sens: [uzupełnić]
+- Jednostka pracy: fragment bieżącego frontieru lub odpowiadający mu zakres wierzchołków i ich list sąsiedztwa przypisany do danego wątku.
+- Dlaczego ten podział ma sens: w obrębie jednej warstwy operacje na poszczególnych wierzchołkach frontieru są w dużej mierze niezależne, więc można je przetwarzać równolegle. Partycjonowanie 1D upraszcza rozdział pracy, dobrze współpracuje ze wspólną pamięcią i pozwala ograniczyć koszt zarządzania danymi.
 
 ### 5.3. Scalanie wyników
 
-[opis sposobu łączenia wyników częściowych]
+Każdy wątek podczas przetwarzania swojej części frontieru tworzy lokalną listę wierzchołków
+należących do `next_frontier`. Po zakończeniu pracy nad bieżącą warstwą lokalne bufory są
+łączone w jeden globalny frontier następnego poziomu.
+
+Po opróżnieniu `next_frontier` dla danej składowej sprawdzane jest, czy istnieją jeszcze
+nieodwiedzone wierzchołki. Jeśli tak, jeden z nich inicjuje nowy frontier i przetwarzanie
+jest kontynuowane dla kolejnej składowej.
+
+Aby uniknąć wielokrotnego dodania tego samego wierzchołka, współdzielona tablica `visited`
+jest aktualizowana w sposób zsynchronizowany. Tylko wątek, który jako pierwszy oznaczy
+wierzchołek jako odwiedzony, dodaje go do lokalnego `next_frontier`.
 
 ### 5.4. Przewidywane narzuty
 
-- synchronizacja: [mała / średnia / duża + komentarz]
-- kopiowanie danych: [mała / średnia / duża + komentarz]
-- start workerów / procesów: [mały / średni / duży + komentarz]
+- synchronizacja: **średnia** — potrzebna jest synchronizacja przy wyznaczaniu kolejnych warstw oraz przy oznaczaniu wierzchołków jako odwiedzonych; dodatkowy koszt może pojawić się przy przechodzeniu między składowymi
+- kopiowanie danych: **mała** — graf pozostaje we wspólnej pamięci, a scalaniu podlegają głównie lokalne bufory `next_frontier`
+- start workerów / procesów: **mały** — przy zastosowaniu stałej puli wątków koszt uruchomienia jest jednorazowy; kolejne składowe mogą być przetwarzane bez ponownego tworzenia workerów
 
 ## 6. Wersja równoległa
 
