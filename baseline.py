@@ -1,7 +1,6 @@
 import time
 from collections import deque
 
-from utils import draw_graph
 
 
 def bfs(graph, start):
@@ -43,17 +42,3 @@ def bfs_all_components(graph):
 
     total_time = time.perf_counter() - t0
     return components, total_time
-
-graph = {
-    'A': ['B', 'C'],
-    'B': ['A', 'D', 'E', 'F'],
-    'C': ['A'],
-    'D': ['B'],
-    'E': ['B'],
-    'F': ['B'],
-    'G': ['H', 'I'],
-    'H': ['G'],
-    'I': ['G']
-}
-draw_graph(graph)
-bfs_all_components(graph)
