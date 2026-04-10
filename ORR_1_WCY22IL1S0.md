@@ -247,25 +247,57 @@ wierzchołek jako odwiedzony, dodaje go do lokalnego `next_frontier`.
 
 ### 6.1. Opis implementacji
 
-[krótki opis finalnego wariantu parallel]
+Wersja równoległa wykorzystuje moduł `multiprocessing` (procesy, nie wątki) w celu osiągnięcia
+rzeczywistej równoległości obliczeń, omijając ograniczenia GIL w Pythonie. Implementacja składa się
+z dwóch głównych plików: `src/parallel.py` (logika BFS) oraz `main.py` (orkiestracja benchmarku).
+
+**Reprezentacja grafu — format CSR (Compressed Sparse Row).** Graf wejściowy (słownik list sąsiedztwa)
+konwertowany jest na trzy tablice: `offsets` (przesunięcia, długość $n+1$), `edges` (spłaszczona lista
+sąsiadów) oraz `visited` (tablica odwiedzeń). Tablice te są przechowywane w pamięci współdzielonej
+(`RawArray` z modułu `ctypes`), co pozwala procesom roboczym odczytywać dane grafu bez kopiowania.
+
+**Cykl życia puli procesów.** Kontekst równoległy (pula procesów + pamięć współdzielona) tworzony jest
+jednorazowo przez funkcję `create_parallel_context()` przed przetworzeniem wszystkich grafów. Pamięć
+współdzielona jest pre-alokowana do rozmiarów maksymalnych (`MAX_NODES = 15 000`, `MAX_EDGES = 15 000 000`)
+i używana ponownie dla kolejnych grafów — dla każdego grafu nadpisywane są jedynie potrzebne fragmenty tablic.
+Po przetworzeniu wszystkich grafów pula zamykana jest przez `destroy_parallel_context()`.
+
+**Algorytm BFS — podział frontieru (partycjonowanie 1D).** W każdej warstwie (poziomie) BFS bieżący
+frontier dzielony jest na $P$ fragmentów (chunków), gdzie $P$ to liczba procesów roboczych. Każdy
+worker otrzymuje swój fragment i dla każdego wierzchołka z fragmentu przegląda listę sąsiadów w
+pamięci współdzielonej, zwracając listę kandydatów — sąsiadów, którzy wg odczytu tablicy `visited`
+nie zostali jeszcze odwiedzeni. Proces główny zbiera listy kandydatów, deduplikuje je (filtruje
+wierzchołki już oznaczone jako odwiedzone) i buduje frontier następnego poziomu.
+
+**Próg równoległości (PARALLEL_THRESHOLD).** Jeżeli rozmiar frontieru jest mniejszy niż próg
+(`max(512, num_workers × 32)`), warstwa przetwarzana jest sekwencyjnie w procesie głównym,
+unikając narzutu komunikacji międzyprocesowej (IPC) dla małych warstw.
+
+**Obsługa grafów niespójnych.** Po opróżnieniu frontieru dla danej składowej algorytm przeszukuje
+tablicę `visited` w poszukiwaniu kolejnego nieodwiedzonego wierzchołka i rozpoczyna nowy BFS.
+
+**Kluczowe decyzje projektowe:**
+- Workery TYLKO CZYTAJĄ z pamięci współdzielonej → brak locków, brak deadlocków
+- Deduplikacja i zapis do `visited`/`dist` odbywa się WYŁĄCZNIE w procesie głównym → gwarancja poprawności
+- Pula procesów tworzona jest RAZ i używana ponownie dla wielu grafów → jednorazowy koszt startu workerów
 
 ### 6.2. Konfiguracje testowe
 
 | Konfiguracja | Liczba workerów / wątków / procesów | Uwagi |
 | --- | --- | --- |
-| C1 | [uzupełnić] | [uzupełnić] |
-| C2 | [uzupełnić] | [uzupełnić] |
-| C3 | [uzupełnić] | [uzupełnić] |
+| C1 | 12 procesów | pełne obciążenie CPU (12 rdzeni), `PARALLEL_THRESHOLD = 512` |
 
 ### 6.3. Poprawność względem baseline'u
 
-- Czy wynik zgadza się z wersją sekwencyjną: [tak / nie]
-- Jak to sprawdzono: [uzupełnić]
+- Czy wynik zgadza się z wersją sekwencyjną: **tak**
+- Jak to sprawdzono: Dla każdego z 60 grafów testowych (12 spójnych + 48 niespójnych) porównano wynik równoległego BFS z oczekiwanymi wynikami wygenerowanymi przez `generate_graphs.py`. Weryfikacja obejmuje: liczbę składowych spójności, wierzchołek startowy każdej składowej, zbiór wierzchołków w składowej oraz tablicę odległości. Wynik testu: `[OK] WSZYSTKIE TESTY POPRAWNOSCI ZALICZONE`.
 
 ### 6.4. Pierwsze obserwacje
 
-- [uzupełnić]
-- [uzupełnić]
+- Dla dużych, gęstych grafów (≥ 1 mln krawędzi) osiągnięto przyspieszenie 2.5–3.6× przy 12 procesach (np. `random/large`: 5000 wierzchołków, 7.5 mln krawędzi → przyspieszenie **3.58×**)
+- Dla małych i rzadkich grafów (< 500 wierzchołków, < 20 tys. krawędzi) przyspieszenie wynosi 0.5–1.2× — narzut IPC (`pool.map`) i serializacji dominuje nad zyskiem z równoległości, gdy czas sekwencyjnego BFS wynosi < 0.01 s
+- Łączny przyspieszenie dla wszystkich 60 grafów: **2.63×** (łączny czas sekwencyjny: 2.38 s, równoległy: 0.91 s)
+- Krytycznym czynnikiem wydajności okazał się koszt tworzenia puli procesów — na Windows (metoda `spawn`) utworzenie `mp.Pool(12)` trwa ~5–10 s. Pierwotna implementacja tworzyła pulę od nowa dla każdego grafu, co dawało łączny narzut ~300–600 s na 60 grafów. Po przeniesieniu tworzenia puli do jednorazowej inicjalizacji czas łączny spadł z 604.5 s do 0.9 s
 
 ## 7. Plan wersji rozproszonej
 

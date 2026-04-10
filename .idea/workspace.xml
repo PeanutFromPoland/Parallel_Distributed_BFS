@@ -4,13 +4,7 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Uporządkowanie kodu">
-      <change beforePath="$PROJECT_DIR$/.idea/Parallel_Distributed_BFS.iml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/Parallel_Distributed_BFS.iml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/misc.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/misc.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/main.py" beforeDir="false" afterPath="$PROJECT_DIR$/main.py" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/parallel.py" beforeDir="false" afterPath="$PROJECT_DIR$/src/parallel.py" afterDir="false" />
-    </list>
+    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Poprawa wydajności wersji zrównoleglonej" />
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
     <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
@@ -113,7 +107,7 @@
       <workItem from="1775639710589" duration="3000" />
       <workItem from="1775640204677" duration="612000" />
       <workItem from="1775729107413" duration="993000" />
-      <workItem from="1775802804065" duration="315000" />
+      <workItem from="1775802804065" duration="436000" />
     </task>
     <task id="LOCAL-00001" summary="removed unnecessary import in grid.py">
       <option name="closed" value="true" />
@@ -187,7 +181,15 @@
       <option name="project" value="LOCAL" />
       <updated>1775639571471</updated>
     </task>
-    <option name="localTasksCounter" value="10" />
+    <task id="LOCAL-00010" summary="Poprawa wydajności wersji zrównoleglonej">
+      <option name="closed" value="true" />
+      <created>1775803144214</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
+      <option name="project" value="LOCAL" />
+      <updated>1775803144214</updated>
+    </task>
+    <option name="localTasksCounter" value="11" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -213,7 +215,8 @@
     <MESSAGE value="Wprowadzono wstępną implementację równoległą, katastrofalnie powolna" />
     <MESSAGE value="Implementacja równoległa" />
     <MESSAGE value="Uporządkowanie kodu" />
-    <option name="LAST_COMMIT_MESSAGE" value="Uporządkowanie kodu" />
+    <MESSAGE value="Poprawa wydajności wersji zrównoleglonej" />
+    <option name="LAST_COMMIT_MESSAGE" value="Poprawa wydajności wersji zrównoleglonej" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$__init__.coverage" NAME="__init__ Coverage Results" MODIFIED="1775639510677" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
