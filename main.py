@@ -9,7 +9,8 @@ Uruchomienie:
 
 import multiprocessing as mp
 
-from src import parallel_bfs, sequential_bfs
+from src import sequential_bfs
+from src.parallel import create_parallel_context, destroy_parallel_context, parallel_bfs
 from utils import load_graph, collect_graph_files, load_expected, verify_bfs, print_summary
 
 def main():
@@ -33,29 +34,34 @@ def main():
     print(f"  Wykonywanie BFS i weryfikacja...")
     print(f"{'-' * 80}")
 
+    context = create_parallel_context(num_workers)
+
     results_seq = []
     results_par = []
 
-    for graph_path, expected_path, label in graph_files:
-        print(f"  {label} ...", end=" ", flush=True)
+    try:
+        for graph_path, expected_path, label in graph_files:
+            print(f"  {label} ...", end=" ", flush=True)
 
-        graph = load_graph(graph_path)
-        num_nodes = len(graph)
-        num_edges = sum(len(n) for n in graph.values())
+            graph = load_graph(graph_path)
+            num_nodes = len(graph)
+            num_edges = sum(len(n) for n in graph.values())
 
-        seq_components, seq_time = sequential_bfs(graph)
-        par_components, par_time = parallel_bfs(graph, num_workers)
+            seq_components, seq_time = sequential_bfs(graph)
+            par_components, par_time = parallel_bfs(graph, context)
 
-        expected_components = load_expected(expected_path)
-        correct, msg = verify_bfs(par_components, expected_components)
+            expected_components = load_expected(expected_path)
+            correct, msg = verify_bfs(par_components, expected_components)
 
-        speedup = seq_time / par_time if par_time > 0 else float('inf')
-        status = "OK" if correct else f"BŁĄD: {msg}"
-        print(f"seq={seq_time:.4f}s  par={par_time:.4f}s  "
-              f"speedup={speedup:.2f}x  {status}")
+            speedup = seq_time / par_time if par_time > 0 else float('inf')
+            status = "OK" if correct else f"BŁĄD: {msg}"
+            print(f"seq={seq_time:.4f}s  par={par_time:.4f}s  "
+                  f"speedup={speedup:.2f}x  {status}")
 
-        results_seq.append((label, num_nodes, num_edges, seq_time, True, "OK"))
-        results_par.append((label, num_nodes, num_edges, par_time, correct, msg))
+            results_seq.append((label, num_nodes, num_edges, seq_time, True, "OK"))
+            results_par.append((label, num_nodes, num_edges, par_time, correct, msg))
+    finally:
+        destroy_parallel_context(context)
 
     print_summary(results_seq, results_par, num_workers)
 
