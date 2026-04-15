@@ -101,18 +101,20 @@ def generate_small_world_graph(
                     # usuwamy starą krawędź
                     remove_edge(u, v)
 
-                    # szukamy nowego celu
-                    possible = [
-                        x for x in nodes
-                        if x != u and (min(u, x), max(u, x)) not in edges
-                    ]
+                    # szukamy nowego celu losowym próbkowaniem
+                    # (zamiast materializacji listy wszystkich możliwych celów)
+                    new_v = None
+                    for _ in range(size):  # maks. prób
+                        candidate = nodes[rng.randint(0, size - 1)]
+                        if candidate != u and (min(u, candidate), max(u, candidate)) not in edges:
+                            new_v = candidate
+                            break
 
-                    # gdyby nie było możliwego wyboru, przywracamy starą krawędź
-                    if not possible:
+                    # gdyby nie znaleziono nowego celu, przywracamy starą krawędź
+                    if new_v is None:
                         add_edge(u, v)
                         continue
 
-                    new_v = rng.choice(possible)
                     add_edge(u, new_v)
 
         return graph

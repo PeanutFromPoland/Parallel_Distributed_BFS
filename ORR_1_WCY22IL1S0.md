@@ -303,26 +303,49 @@ tablicę `visited` w poszukiwaniu kolejnego nieodwiedzonego wierzchołka i rozpo
 
 ### 7.1. Architektura
 
-- coordinator / scheduler: [uzupełnić]
-- worker: [uzupełnić]
-- co jest wysyłane do workera: [dane / parametry / opis zadania]
-- co wraca z workera: [uzupełnić]
+- **coordinator (proces główny):** Wczytuje graf niespójny, identyfikuje składowe spójności (za pomocą BFS/DFS na pełnym grafie lub — w wersji zoptymalizowanej — korzystając z zakresów numeracji wierzchołków wynikających z generatora grafów niespójnych). Dla każdej składowej wyodrębnia podgraf (listę sąsiedztwa ograniczoną do wierzchołków składowej) i wysyła go jako niezależne zadanie do wolnego workera. Po zebraniu wyników od wszystkich workerów scala tablice odległości w globalny wynik.
+
+- **worker (proces roboczy):** Odbiera kompletny podgraf (listę sąsiedztwa jednej składowej spójności) wraz z wierzchołkiem startowym. Wykonuje na nim klasyczny, sekwencyjny BFS (kolejka FIFO) i zwraca tablicę odległości `{node: dist}` dla wszystkich wierzchołków w składowej.
+
+- **co jest wysyłane do workera:**
+    - podgraf w formie `dict[int, list[int]]` (lista sąsiedztwa danej składowej),
+    - wierzchołek startowy `start` (najmniejszy numerycznie wierzchołek w składowej — zachowanie spójne z wersją sekwencyjną i równoległą).
+
+- **co wraca z workera:**
+    - krotka `(start, {node: dist})` — wierzchołek startowy składowej oraz słownik odległości wszystkich wierzchołków od niego.
 
 ### 7.2. Dlaczego to jest naprawdę wariant rozproszony lub distributed-like
 
-[opis miejsca występowania jawnej komunikacji, serializacji albo task shipping]
+Implementacja realizuje model **task shipping** charakterystyczny dla systemów rozproszonych:
+
+1. **Jawna serializacja danych** — każdy podgraf (lista sąsiedztwa składowej) jest serializowany przez `pickle` w procesie koordynatora i deserializowany w procesie roboczym. Dane nie są współdzielone w pamięci; worker dostaje własną, niezależną kopię fragmentu grafu.
+
+2. **Brak pamięci współdzielonej** — w odróżnieniu od wersji równoległej (§ 6), workery nie korzystają z `RawArray` ani żadnych struktur w pamięci współdzielonej. Każdy proces roboczy operuje wyłącznie na danych przesłanych mu przez IPC (Inter-Process Communication) — identycznie jak w architekturze master–worker w systemie rozproszonym.
+
+3. **Niezależność workerów** — workery nie komunikują się między sobą ani z koordynatorem w trakcie obliczeń. Każdy worker przetwarza swoją składową od początku do końca, bez potrzeby synchronizacji warstw BFS z innymi procesami. Jest to model **embarrassingly parallel** z perspektywy poszczególnych składowych.
+
+4. **Komunikacja wyłącznie na granicach zadania** — komunikacja zachodzi dwukrotnie: (a) wysyłka zadania (podgraf + start) do workera, (b) odbiór wyniku (tablica odległości). Odpowiada to wzorcowi `scatter → compute → gather` typowemu dla MPI i systemów rozproszonych.
+
+5. **Przenośność na prawdziwy klaster** — architektura jest zaprojektowana tak, aby `mp.Pool` mógł zostać zastąpiony komunikacją sieciową (np. gniazda TCP, MPI `comm.send`/`comm.recv`) bez zmiany logiki algorytmu. Jedyną różnicą byłby transport danych — zamiast IPC na jednej maszynie, przesyłka przez sieć.
 
 ### 7.3. Partie pracy
 
-- Jak duże są partie: [uzupełnić]
-- Dlaczego wybrano taki rozmiar: [uzupełnić]
+- **Jak duże są partie:** Każda partia pracy to **jeden pełny podgraf spójny** (składowa spójności grafu niespójnego). Rozmiar partii odpowiada liczbie wierzchołków i krawędzi w danej składowej. Dla grafów generowanych przez `generate_inconsistent_graph` z `parts_count=2` oznacza to dwa zadania — każde obejmujące około połowy wierzchołków grafu (z losową wariancją wynikającą z `_partition_vertices`).
+
+- **Dlaczego wybrano taki rozmiar:** Podział na składowe spójności jest naturalną granicą podziału pracy dla BFS — wierzchołki z różnych składowych nie mają wspólnych krawędzi, więc BFS na jednej składowej jest w pełni niezależny od pozostałych. Taki podział:
+    - **eliminuje komunikację między workerami** w trakcie obliczeń (brak krawędzi przecinających),
+    - **maksymalizuje granularność zadań** — każde zadanie jest wystarczająco duże, aby zamortyzować narzut serializacji i IPC,
+    - **gwarantuje poprawność** — worker nie potrzebuje informacji z innych składowych, więc wynik lokalnego BFS jest od razu wynikiem globalnym dla tej części grafu.
 
 ### 7.4. Przewidywane koszty
 
-- serializacja: [uzupełnić]
-- komunikacja: [uzupełnić]
-- start workerów: [uzupełnić]
-- scalanie wyników: [uzupełnić]
+- **serializacja:** **średnia do dużej** — cały podgraf (lista sąsiedztwa) jest serializowany `pickle`-em przy wysyłce do workera, a tablica odległości przy odbiorze. Dla dużych składowych (np. 25 000 wierzchołków z dużą liczbą krawędzi) rozmiar serializowanego obiektu może wynieść kilka–kilkadziesiąt MB. Koszt ten jest ponoszony dwukrotnie na składową (tam i z powrotem).
+
+- **komunikacja:** **mała do średniej** — komunikacja zachodzi wyłącznie na granicach zadań (przed i po BFS), bez wymiany danych w trakcie obliczeń. Dla 2–4 składowych na graf to zaledwie 4–8 operacji IPC na cały benchmark. Wąskim gardłem może być serializacja, nie sam transport.
+
+- **start workerów:** **mały (jednorazowy)** — pula procesów (`mp.Pool`) tworzona jest raz przed przetworzeniem wszystkich grafów (analogicznie do wersji równoległej). Narzut startu procesów (~5–10 s na Windows z metodą `spawn`) jest amortyzowany na wszystkich grafach.
+
+- **scalanie wyników:** **minimalne** — coordinator jedynie zbiera krotki `(start, {node: dist})` od workerów i dołącza je do listy `components`. Nie ma potrzeby deduplikacji ani łączenia nakładających się wyników, ponieważ składowe są rozłączne — wystarczy proste `append`.
 
 ## 8. Wersja rozproszona / distributed-like
 

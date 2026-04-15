@@ -30,7 +30,7 @@ from collections import deque
 SIZES = {
     "small":  50,
     "medium": 500,
-    "large":  5_000,
+    "large":  50_000,
 }
 
 GRAPH_TYPES = ["random", "bb", "small_world", "grid"]
