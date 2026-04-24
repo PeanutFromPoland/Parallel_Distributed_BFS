@@ -1,0 +1,55 @@
+services:
+  # ─── Workery BFS ────────────────────────────────────────────────────
+  worker-1:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    expose:
+      - "5000"
+    environment:
+      - WORKER_PORT=5000
+    networks:
+      - bfs-net
+
+  worker-2:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    expose:
+      - "5000"
+    environment:
+      - WORKER_PORT=5000
+    networks:
+      - bfs-net
+
+  worker-3:
+    build:
+      context: .
+      dockerfile: worker/Dockerfile
+    expose:
+      - "5000"
+    environment:
+      - WORKER_PORT=5000
+    networks:
+      - bfs-net
+
+  # ─── Coordinator ────────────────────────────────────────────────────
+  coordinator:
+    build:
+      context: .
+      dockerfile: coordinator/Dockerfile
+    volumes:
+      - ../graphs:/app/graphs:ro
+    depends_on:
+      - worker-1
+      - worker-2
+      - worker-3
+    environment:
+      - WORKERS=worker-1:5000,worker-2:5000,worker-3:5000
+      - GRAPHS_DIR=/app/graphs
+    networks:
+      - bfs-net
+
+networks:
+  bfs-net:
+    driver: bridge
