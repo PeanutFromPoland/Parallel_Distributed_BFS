@@ -351,23 +351,124 @@ Implementacja realizuje model **task shipping** charakterystyczny dla systemów 
 
 ### 8.1. Opis implementacji
 
-[krótki opis wariantu końcowego]
+Końcowa wersja rozproszona została umieszczona w katalogu `distributed/` i działa w architekturze
+**coordinator-worker** uruchamianej przez Docker Compose. W odróżnieniu od wersji równoległej z § 6
+procesy nie współdzielą pamięci. Każdy worker jest osobnym serwisem TCP, a koordynator wysyła mu
+kompletne zadanie w postaci podgrafu oraz wierzchołka startowego.
+
+Najważniejsze pliki implementacji:
+
+- `distributed/coordinator/coordinator.py` - główna logika benchmarku, komunikacja z workerami,
+  podział grafu na składowe, harmonogram zadań i weryfikacja wyniku,
+- `distributed/coordinator/component_detector.py` - detekcja składowych spójności oraz zachłanny
+  przydział pracy do workerów,
+- `distributed/worker/worker.py` - serwer TCP wykonujący sekwencyjny BFS na otrzymanym podgrafie,
+- `distributed/shared/protocol.py` - wspólny protokół komunikacji z nagłówkiem długości wiadomości,
+- `distributed/docker-compose.yml` - konfiguracja trzech workerów i koordynatora.
+
+Przepływ działania jest następujący:
+
+1. Koordynator wczytuje graf z katalogu `graphs/`.
+2. Dla tego grafu wykonywany jest sekwencyjny BFS, który pełni rolę baseline'u czasowego i
+   referencyjnego.
+3. Koordynator wykrywa rzeczywiste składowe spójności za pomocą BFS (`detect_components_bfs`).
+   Wcześniejsze założenie o wykrywaniu składowych wyłącznie po lukach w numeracji okazało się
+   niepoprawne dla wygenerowanych grafów niespójnych, ponieważ ich wierzchołki mogą mieć numerację
+   ciągłą mimo rozłącznych składowych.
+4. Dla każdej składowej tworzony jest podgraf. Jeżeli graf ma tylko jedną składową, nie wykonuje się
+   dodatkowego filtrowania list sąsiedztwa i do workera trafia cały graf.
+5. Składowe są przydzielane zachłannie do workerów. Jako wagę zadania przyjęto liczbę krawędzi w
+   składowej, ponieważ koszt BFS zależy nie tylko od liczby wierzchołków, ale przede wszystkim od
+   liczby przeglądanych list sąsiedztwa.
+6. Każdy worker odbiera zadanie przez TCP, wykonuje klasyczny BFS z kolejką FIFO i odsyła słownik
+   `{node: dist}`.
+7. Koordynator zbiera wyniki, sortuje komponenty według wierzchołka startowego i porównuje je z
+   plikiem `*_expected.txt`.
+
+Komunikacja odbywa się przez gniazda TCP. Każda wiadomość ma format:
+
+```text
+<4 bajty długości big-endian><payload pickle>
+```
+
+W finalnej wersji zamiast JSON zastosowano `pickle`, ponieważ pozwala przesyłać słowniki z kluczami
+typu `int` bez kosztownej konwersji `int -> str -> int`. Jest to istotne zwłaszcza dla dużych grafów,
+gdzie sam podgraf może zawierać miliony krawędzi.
+
+W pętli BFS nie sortuje się już sąsiadów. Kolejność odwiedzania może się przez to różnić, ale
+odległości BFS pozostają takie same, a to one są kryterium poprawności. Dzięki temu wersja
+sekwencyjna i rozproszona unikają zbędnego kosztu `sorted(...)` w najczęściej wykonywanej części
+algorytmu.
 
 ### 8.2. Sposób uruchomienia
 
 ```bash
-# [uzupełnić]
+# z katalogu głównego projektu
+python generate_graphs.py
+
+# uruchomienie wersji rozproszonej
+cd distributed
+docker compose up --build --abort-on-container-exit --exit-code-from coordinator
+```
+
+Domyślna konfiguracja uruchamia trzy workery:
+
+```yaml
+worker-1:5000
+worker-2:5000
+worker-3:5000
+```
+
+Koordynator otrzymuje ich adresy przez zmienną środowiskową `WORKERS`, a katalog z grafami jest
+montowany jako wolumen tylko do odczytu:
+
+```yaml
+../graphs:/app/graphs:ro
 ```
 
 ### 8.3. Poprawność względem baseline'u
 
-- Czy wynik zgadza się z wersją sekwencyjną: [tak / nie]
-- Jak to sprawdzono: [uzupełnić]
+- Czy wynik zgadza się z wersją sekwencyjną: **tak**
+- Jak to sprawdzono: dla każdego z 60 grafów testowych wynik wersji rozproszonej porównano z
+  oczekiwanymi wynikami zapisanymi w plikach `*_expected.txt`.
+
+Weryfikacja obejmuje:
+
+- liczbę składowych spójności,
+- wierzchołek startowy każdej składowej,
+- liczbę odwiedzonych wierzchołków,
+- odległość `dist` dla każdego wierzchołka.
+
+Po poprawieniu detekcji składowych pełny benchmark Docker Compose zakończył się komunikatem:
+
+```text
+[OK] WSZYSTKIE TESTY POPRAWNOSCI ZALICZONE
+```
+
+Warto zaznaczyć, że przed poprawką wersja rozproszona nie była poprawna dla grafów niespójnych:
+48 z 60 przypadków raportowało jedną składową zamiast dwóch. Przyczyną było błędne założenie, że
+składowe można wykryć po przerwach w numeracji wierzchołków. Finalna implementacja używa pełnej
+detekcji BFS, co jest wolniejsze od heurystyki po numeracji, ale jest poprawne i uczciwe względem
+baseline'u.
 
 ### 8.4. Ograniczenia środowiska
 
-- [uzupełnić]
-- [uzupełnić]
+- Wersja rozproszona dzieli pracę po składowych spójności. Dla grafu spójnego istnieje tylko jedno
+  zadanie, więc pracuje praktycznie jeden worker, a pozostałe nie mają użytecznej pracy.
+- Dla grafów niespójnych generowanych w projekcie zwykle występują dwie składowe, więc przy trzech
+  workerach maksymalnie dwa workery wykonują BFS. Ogranicza to możliwy speedup niezależnie od liczby
+  dostępnych kontenerów.
+- Do czasu wersji rozproszonej wliczono detekcję składowych, przygotowanie podgrafów, scheduling,
+  komunikację TCP oraz BFS workerów. Nie wliczono startu kontenerów, łączenia z workerami,
+  wczytywania grafu ani wczytywania pliku `*_expected.txt`.
+- Narzut serializacji i przesyłania całych podgrafów jest duży w stosunku do samego BFS, szczególnie
+  dla małych i średnich grafów.
+- Implementacja jest distributed-like, ponieważ używa osobnych procesów i komunikacji TCP, ale
+  wszystkie kontenery działają lokalnie na jednej maszynie. Nie testowano opóźnień sieciowych
+  typowych dla prawdziwego klastra.
+- Aktualny model nie równolegli pojedynczej składowej. Aby uzyskać przyspieszenie dla grafów
+  spójnych, należałoby podzielić pracę wewnątrz jednej składowej, np. według frontieru albo
+  partycji wierzchołków, oraz wymieniać informacje o nowo odkrytych wierzchołkach między workerami.
 
 ## 9. Benchmark i analiza wyników
 

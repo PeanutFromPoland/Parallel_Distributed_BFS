@@ -11,7 +11,7 @@ Implementacja rozproszonego algorytmu BFS (Breadth-First Search) w architekturze
 │  (coordinator)  │  zachłannie przydziela do workerów,
 │                 │  zbiera wyniki, weryfikuje poprawność
 └────┬───┬───┬────┘
-     │   │   │        TCP (JSON + nagłówek długości)
+     │   │   │        TCP (pickle + nagłówek długości)
      ▼   ▼   ▼
 ┌────┐ ┌────┐ ┌────┐
 │ W1 │ │ W2 │ │ W3 │  Workery: odbierają podgrafy,
@@ -21,12 +21,15 @@ Implementacja rozproszonego algorytmu BFS (Breadth-First Search) w architekturze
 
 ### Optymalizacje
 
-1. **Identyfikacja składowych po numeracji** — zamiast pełnego BFS/DFS,
-   koordynator analizuje luki w posortowanej numeracji wierzchołków
-   (generator grafów niespójnych nadaje kolejne numery w ramach składowych)
+1. **Jawna detekcja składowych BFS** — koordynator wykrywa rzeczywiste
+   składowe grafu przed rozdzieleniem pracy. Ten koszt jest wliczany do czasu
+   wersji rozproszonej, bo jest konieczny do poprawnego podziału zadań.
 
-2. **Zachłanny przydział workerów** — składowe sortowane malejąco wg rozmiaru,
-   każda trafia do workera z najmniejszym obciążeniem (LPT scheduling)
+2. **Zachłanny przydział workerów** — składowe sortowane malejąco wg liczby
+   krawędzi, każda trafia do workera z najmniejszym obciążeniem (LPT scheduling)
+
+3. **Binarny protokół komunikacji** — wiadomości TCP mają nagłówek długości
+   i payload `pickle`, co usuwa koszt konwersji kluczy `int` na tekst.
 
 ## Wymagania
 
@@ -94,7 +97,7 @@ distributed/
 
 ## Protokół komunikacji
 
-Format wiadomości: `<4B długość big-endian><JSON payload>`
+Format wiadomości: `<4B długość big-endian><pickle payload>`
 
 | Kierunek | Typ        | Payload                                           |
 |----------|------------|---------------------------------------------------|
@@ -109,3 +112,13 @@ Coordinator automatycznie:
 2. Wykonuje rozproszony BFS (3 workery)
 3. Porównuje wynik z oczekiwanym (`*_expected.txt`)
 4. Drukuje tabelę z czasami, speedupem i wynikami weryfikacji
+
+### Zakres pomiaru czasu
+
+- Czas sekwencyjny obejmuje samo przejście BFS po już wczytanym grafie.
+- Czas rozproszony obejmuje detekcję składowych, przygotowanie podgrafów,
+  harmonogram zadań, komunikację TCP oraz BFS wykonywany przez workery.
+- Połączenie z workerami, start kontenerów, wczytanie grafu i wczytanie pliku
+  `*_expected.txt` nie są wliczane do żadnego z porównywanych czasów.
+- Obecny podział pracy odbywa się po składowych. Dla grafu spójnego pracuje
+  tylko jeden worker, więc narzut komunikacji zwykle dominuje nad zyskiem.

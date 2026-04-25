@@ -1,5 +1,4 @@
 services:
-  # ─── Workery BFS ────────────────────────────────────────────────────
   worker-1:
     build:
       context: .
@@ -33,7 +32,6 @@ services:
     networks:
       - bfs-net
 
-  # ─── Coordinator ────────────────────────────────────────────────────
   coordinator:
     build:
       context: .

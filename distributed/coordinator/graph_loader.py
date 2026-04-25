@@ -1,34 +1,15 @@
-"""
-Ładowanie grafów i oczekiwanych wyników BFS.
-
-Adaptery przepisane z utils/loader.py — bez zależności od oryginalnego projektu.
-Używane przez koordynatora do wczytywania grafów z zamontowanego volume.
-"""
-
 import os
 import itertools
 
 
-# ─── Typy grafów i rozmiary ──────────────────────────────────────────
 SIZES = ["small", "medium", "large"]
 GRAPH_TYPES = ["random", "bb", "small_world", "grid"]
 
 
-def load_graph(filepath: str) -> dict[int, list[int]]:
-    """
-    Odczytuje graf z pliku tekstowego.
-
-    Format pliku:
-        <liczba_wierzchołków> <liczba_krawędzi>
-        <u> <v>
-        ...
-
-    Zwraca:
-        dict[int, list[int]] — lista sąsiedztwa
-    """
+def load_graph(filepath):
     graph = {}
     with open(filepath, "r", encoding="utf-8") as f:
-        _header = f.readline()  # pomijamy nagłówek
+        _header = f.readline()
 
         for line in f:
             parts = line.strip().split()
@@ -39,7 +20,6 @@ def load_graph(filepath: str) -> dict[int, list[int]]:
                 graph[u] = []
             graph[u].append(v)
 
-    # Upewnij się, że wierzchołki bez krawędzi wychodzących też są w grafie
     all_nodes = set(graph.keys())
     for neighbors in list(graph.values()):
         for n in neighbors:
@@ -50,18 +30,7 @@ def load_graph(filepath: str) -> dict[int, list[int]]:
     return graph
 
 
-def load_expected(filepath: str) -> list[tuple[int, dict[int, int]]]:
-    """
-    Odczytuje oczekiwane wyniki BFS z pliku.
-
-    Format pliku:
-        COMPONENT <start_node>
-        <node> <dist>
-        ...
-
-    Zwraca:
-        [(start_node, {node: dist}), ...]
-    """
+def load_expected(filepath):
     components = []
     current_start = None
     current_dist = {}
@@ -86,30 +55,11 @@ def load_expected(filepath: str) -> list[tuple[int, dict[int, int]]]:
     return components
 
 
-def collect_graph_files(base_dir: str) -> list[tuple[str, str, str]]:
-    """
-    Zbiera ścieżki do grafów testowych w katalogu base_dir.
-
-    Struktura oczekiwana:
-        base_dir/
-        ├── connected/
-        │   ├── random/   small.txt, small_expected.txt, ...
-        │   ├── bb/
-        │   ├── small_world/
-        │   └── grid/
-        └── inconsistent/
-            ├── small/    random_random.txt, random_random_expected.txt, ...
-            ├── medium/
-            └── large/
-
-    Zwraca:
-        [(graph_path, expected_path, label), ...]
-    """
+def collect_graph_files(base_dir):
     connected_dir = os.path.join(base_dir, "connected")
     inconsistent_dir = os.path.join(base_dir, "inconsistent")
     files = []
 
-    # Grafy spójne
     for graph_type in GRAPH_TYPES:
         for size_name in SIZES:
             graph_path = os.path.join(
@@ -122,7 +72,6 @@ def collect_graph_files(base_dir: str) -> list[tuple[str, str, str]]:
                 label = f"[Spójny] {graph_type}/{size_name}"
                 files.append((graph_path, expected_path, label))
 
-    # Grafy niespójne — wszystkie kombinacje typów
     combinations = list(itertools.product(GRAPH_TYPES, repeat=2))
     for type_a, type_b in combinations:
         combo_name = f"{type_a}_{type_b}"

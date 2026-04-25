@@ -1,21 +1,3 @@
-"""
-Coordinator — proces główny rozproszonego BFS.
-
-Architektura:
-    1. Ładuje grafy z zamontowanego volume (graphs/)
-    2. Identyfikuje składowe spójności (optymalizacja po numeracji wierzchołków)
-    3. Zachłannie przydziela składowe do workerów
-    4. Wysyła podgrafy do workerów przez TCP (scatter)
-    5. Odbiera wyniki BFS (gather)
-    6. Scala tablice odległości w globalny wynik
-    7. Weryfikuje poprawność względem oczekiwanych wyników
-    8. Drukuje benchmarki (czasy, speedup)
-    9. Wysyła SHUTDOWN do workerów
-
-Uruchomienie (przez Docker Compose):
-    docker compose up --build
-"""
-
 import os
 import sys
 import time
@@ -28,13 +10,12 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 
 from graph_loader import load_graph, load_expected, collect_graph_files
 from component_detector import (
-    detect_components_by_numbering,
+    detect_components_bfs,
     extract_subgraph,
     greedy_schedule,
 )
 from shared.protocol import send_msg, recv_msg
 
-# ─── Konfiguracja ────────────────────────────────────────────────────
 GRAPHS_DIR = os.environ.get("GRAPHS_DIR", "/app/graphs")
 WORKERS_ENV = os.environ.get("WORKERS", "worker-1:5000,worker-2:5000,worker-3:5000")
 WORKER_ADDRESSES = [
@@ -43,22 +24,17 @@ WORKER_ADDRESSES = [
 WORKER_ADDRESSES = [(host, int(port)) for host, port in WORKER_ADDRESSES]
 
 MAX_CONNECT_RETRIES = 30
-CONNECT_RETRY_DELAY = 2.0  # sekundy
+CONNECT_RETRY_DELAY = 2.0
 
 logging.basicConfig(
-    level=logging.INFO,
+    level=getattr(logging, os.environ.get("LOG_LEVEL", "WARNING").upper(), logging.WARNING),
     format="[COORDINATOR] %(asctime)s %(levelname)s %(message)s",
     datefmt="%H:%M:%S",
 )
 log = logging.getLogger(__name__)
 
 
-# ─── Sekwencyjny BFS (referencyjny) ─────────────────────────────────
-def sequential_bfs(graph: dict[int, list[int]]) -> list[tuple[int, dict[int, int]]]:
-    """
-    Sekwencyjny BFS po wszystkich składowych spójności.
-    Służy jako baseline do porównania czasów.
-    """
+def sequential_bfs(graph):
     visited = set()
     components = []
 
@@ -69,7 +45,7 @@ def sequential_bfs(graph: dict[int, list[int]]) -> list[tuple[int, dict[int, int
         queue = deque([start])
         while queue:
             node = queue.popleft()
-            for nb in sorted(graph.get(node, [])):
+            for nb in graph.get(node, []):
                 if nb not in dist:
                     dist[nb] = dist[node] + 1
                     queue.append(nb)
@@ -79,11 +55,7 @@ def sequential_bfs(graph: dict[int, list[int]]) -> list[tuple[int, dict[int, int
     return components
 
 
-# ─── Połączenie z workerem ────────────────────────────────────────────
-def connect_to_worker(host: str, port: int) -> socket.socket:
-    """
-    Łączy się z workerem z retry (czeka aż worker się uruchomi).
-    """
+def connect_to_worker(host, port):
     for attempt in range(1, MAX_CONNECT_RETRIES + 1):
         try:
             sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -104,25 +76,10 @@ def connect_to_worker(host: str, port: int) -> socket.socket:
                 raise
 
 
-def send_task_and_recv_result(
-    sock: socket.socket,
-    subgraph: dict[int, list[int]],
-    start: int,
-) -> dict[int, int]:
-    """
-    Wysyła zadanie BFS do workera i odbiera wynik.
-
-    Parametry:
-        sock     : połączony socket TCP
-        subgraph : podgraf do przetworzenia
-        start    : wierzchołek startowy
-
-    Zwraca:
-        dict[int, int] — {node: distance}
-    """
+def send_task_and_recv_result(sock, subgraph, start):
     task = {
         "type": "task",
-        "subgraph": {str(k): v for k, v in subgraph.items()},
+        "subgraph": subgraph,
         "start": start,
     }
     send_msg(sock, task)
@@ -131,13 +88,10 @@ def send_task_and_recv_result(
     if result is None:
         raise ConnectionError("Worker zamknął połączenie przed wysłaniem wyniku")
 
-    # Konwersja kluczy string → int
-    dist = {int(k): v for k, v in result["dist"].items()}
-    return dist
+    return result["dist"]
 
 
-def shutdown_worker(sock: socket.socket) -> None:
-    """Wysyła SHUTDOWN do workera i zamyka połączenie."""
+def shutdown_worker(sock):
     try:
         send_msg(sock, {"type": "shutdown"})
     except Exception:
@@ -149,64 +103,30 @@ def shutdown_worker(sock: socket.socket) -> None:
             pass
 
 
-# ─── Rozproszone BFS ─────────────────────────────────────────────────
-def distributed_bfs(
-    graph: dict[int, list[int]],
-    worker_sockets: list[socket.socket],
-) -> tuple[list[tuple[int, dict[int, int]]], float]:
-    """
-    Rozproszone BFS — podział na składowe, scatter do workerów, gather wyników.
-
-    Parametry:
-        graph          : pełny graf (lista sąsiedztwa)
-        worker_sockets : lista połączonych socketów do workerów
-
-    Zwraca:
-        (components, total_time)
-        components : [(start, {node: dist}), ...]
-        total_time : czas BFS w sekundach (bez czasu ładowania / detekcji)
-    """
+def distributed_bfs(graph, worker_sockets):
     num_workers = len(worker_sockets)
-
-    # 1. Identyfikacja składowych spójności (optymalizacja po numeracji)
-    raw_components = detect_components_by_numbering(graph)
-    log.info(
-        "Wykryto %d składowych spójności (%s wierzchołków)",
-        len(raw_components),
-        ", ".join(str(len(c)) for c in raw_components),
-    )
-
-    # 2. Przygotuj podgrafy i starty
-    tasks = []
-    for comp_vertices in raw_components:
-        subgraph = extract_subgraph(graph, comp_vertices)
-        start = min(comp_vertices)  # najmniejszy numer w składowej
-        tasks.append((start, subgraph, comp_vertices))
-
-    # 3. Zachłanny przydział do workerów
-    schedule = greedy_schedule(raw_components, num_workers)
-
-    log.info("Przydział zachłanny:")
-    for w_idx, comp_indices in enumerate(schedule):
-        if comp_indices:
-            comp_sizes = [len(raw_components[ci]) for ci in comp_indices]
-            log.info(
-                "  Worker %d: %d składowych (%s wierzch.)",
-                w_idx, len(comp_indices), " + ".join(str(s) for s in comp_sizes),
-            )
-
-    # 4. Scatter + gather (wielowątkowe — każdy worker w osobnym wątku)
-    results_lock = threading.Lock()
-    all_results: list[tuple[int, dict[int, int]]] = []
 
     t0 = time.perf_counter()
 
+    raw_components = detect_components_bfs(graph)
+    component_costs = [sum(len(graph.get(v, [])) for v in comp) for comp in raw_components]
+
+    tasks = []
+    for comp_vertices in raw_components:
+        subgraph = extract_subgraph(graph, comp_vertices)
+        start = min(comp_vertices)
+        tasks.append((start, subgraph, comp_vertices))
+
+    schedule = greedy_schedule(raw_components, num_workers, component_costs)
+
+    results_lock = threading.Lock()
+    all_results: list[tuple[int, dict[int, int]]] = []
+
     def worker_thread(w_idx: int, comp_indices: list[int]):
-        """Wątek obsługujący jednego workera — wysyła zadania sekwencyjnie."""
         sock = worker_sockets[w_idx]
         for comp_idx in comp_indices:
             start, subgraph, _vertices = tasks[comp_idx]
-            log.info(
+            log.debug(
                 "Wysyłanie składowej %d (start=%d, %d wierzch.) → worker %d",
                 comp_idx, start, len(subgraph), w_idx,
             )
@@ -228,18 +148,32 @@ def distributed_bfs(
 
     total_time = time.perf_counter() - t0
 
-    # 5. Sortuj wyniki wg start (dla spójności z baseline)
     all_results.sort(key=lambda x: x[0])
+
+    log.info(
+        "Wykryto %d składowych spójności (%s wierzchołków)",
+        len(raw_components),
+        ", ".join(str(len(c)) for c in raw_components),
+    )
+    for w_idx, comp_indices in enumerate(schedule):
+        if comp_indices:
+            comp_sizes = [len(raw_components[ci]) for ci in comp_indices]
+            comp_edges = [component_costs[ci] for ci in comp_indices]
+            log.info(
+                "Worker %d: %d składowych, wierzch.=%s, kraw.=%s",
+                w_idx,
+                len(comp_indices),
+                " + ".join(str(s) for s in comp_sizes),
+                " + ".join(str(e) for e in comp_edges),
+            )
 
     return all_results, total_time
 
 
-# ─── Weryfikacja poprawności ──────────────────────────────────────────
 def verify_bfs(
     actual: list[tuple[int, dict[int, int]]],
     expected: list[tuple[int, dict[int, int]]],
 ) -> tuple[bool, str]:
-    """Porównuje wyniki BFS z oczekiwanymi."""
     if len(actual) != len(expected):
         return False, (
             f"Liczba komponentów: {len(actual)} (oczekiwano {len(expected)})"
@@ -270,9 +204,7 @@ def verify_bfs(
     return True, "OK"
 
 
-# ─── Podsumowanie ────────────────────────────────────────────────────
 def print_summary(results: list[dict], num_workers: int) -> None:
-    """Drukuje tabelę wyników benchmarkowych."""
     print("\n" + "=" * 120)
     print("  PODSUMOWANIE — DISTRIBUTED BFS BENCHMARK")
     print("=" * 120)
@@ -327,7 +259,6 @@ def print_summary(results: list[dict], num_workers: int) -> None:
     print("=" * 120)
 
 
-# ─── MAIN ─────────────────────────────────────────────────────────────
 def main():
     num_workers = len(WORKER_ADDRESSES)
 
@@ -338,7 +269,6 @@ def main():
     print(f"  Katalog grafów: {GRAPHS_DIR}")
     print("=" * 100)
 
-    # 1. Załaduj listę grafów
     graph_files = collect_graph_files(GRAPHS_DIR)
     if not graph_files:
         log.error("Brak grafów w %s! Uruchom najpierw generate_graphs.py", GRAPHS_DIR)
@@ -346,7 +276,6 @@ def main():
 
     log.info("Znaleziono %d grafów", len(graph_files))
 
-    # 2. Połącz się ze wszystkimi workerami
     log.info("Łączenie z workerami...")
     worker_sockets = []
     try:
@@ -356,27 +285,22 @@ def main():
 
         log.info("Wszystkie workery połączone!")
 
-        # 3. Przetwarzanie grafów
         all_results = []
 
         for graph_path, expected_path, label in graph_files:
             log.info("─" * 60)
             log.info("Graf: %s", label)
 
-            # Wczytaj graf
             graph = load_graph(graph_path)
             num_nodes = len(graph)
             num_edges = sum(len(n) for n in graph.values())
 
-            # Sekwencyjny BFS (baseline)
             t0 = time.perf_counter()
             seq_components = sequential_bfs(graph)
             seq_time = time.perf_counter() - t0
 
-            # Rozproszony BFS
             dist_components, dist_time = distributed_bfs(graph, worker_sockets)
 
-            # Weryfikacja
             expected_components = load_expected(expected_path)
             correct, msg = verify_bfs(dist_components, expected_components)
 
@@ -398,11 +322,9 @@ def main():
                 "msg": msg,
             })
 
-        # 4. Podsumowanie
         print_summary(all_results, num_workers)
 
     finally:
-        # 5. Shutdown workerów
         log.info("Wysyłanie SHUTDOWN do workerów...")
         for sock in worker_sockets:
             shutdown_worker(sock)

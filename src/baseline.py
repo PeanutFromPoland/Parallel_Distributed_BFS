@@ -4,13 +4,14 @@ from collections import deque
 def partial_bfs(graph, start):
     """
     BFS od 'start'. Zwraca dict {node: distance}.
-    Sąsiadów sortujemy, żeby wynik był deterministyczny.
+    Kolejność sąsiadów nie wpływa na odległości BFS, więc nie sortujemy ich
+    w pętli pomiarowej.
     """
     dist = {start: 0}
     queue = deque([start])
     while queue:
         node = queue.popleft()
-        for neighbor in sorted(graph[node]):
+        for neighbor in graph[node]:
             if neighbor not in dist:
                 dist[neighbor] = dist[node] + 1
                 queue.append(neighbor)
