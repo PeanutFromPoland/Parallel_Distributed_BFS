@@ -13,6 +13,7 @@ Useful narrower runs:
 """
 
 import argparse
+import hashlib
 import itertools
 import math
 import os
@@ -95,8 +96,11 @@ def _positive_int(value):
     return parsed
 
 
-def _instance_seed(base_seed, instance_number):
-    return base_seed + (instance_number - 1) * 1_000_003
+def _instance_seed(instance_number, *configuration):
+    """Return a stable seed for a configuration and its instance number."""
+    payload = "\0".join(str(value) for value in (SEED, *configuration, instance_number))
+    digest = hashlib.sha256(payload.encode("utf-8")).digest()
+    return int.from_bytes(digest[:8], byteorder="big")
 
 
 def parse_args():
@@ -322,7 +326,14 @@ def generate_connected(
                     graph = make_connected_graph(
                         graph_type,
                         size,
-                        _instance_seed(SEED, instance_number),
+                        _instance_seed(
+                            instance_number,
+                            "connected",
+                            graph_type,
+                            density_name,
+                            size_name,
+                            size,
+                        ),
                         density,
                     )
                     save_graph(graph, graph_path)
@@ -358,7 +369,7 @@ def generate_inconsistent(
     combinations = list(itertools.product(graph_types, repeat=2))
     count = 0
 
-    for idx, (type_a, type_b) in enumerate(combinations, 1):
+    for type_a, type_b in combinations:
         combo_name = f"{type_a}_{type_b}"
         part_types = [type_a, type_b]
         graph_densities = [(None, 0.3)] if all(
@@ -408,8 +419,15 @@ def generate_inconsistent(
                             parts_count=parts_count,
                             part_types=part_types,
                             seed=_instance_seed(
-                                SEED + idx * 1000 + parts_count,
                                 instance_number,
+                                "inconsistent",
+                                type_a,
+                                type_b,
+                                part_name,
+                                parts_count,
+                                density_name,
+                                size_name,
+                                size,
                             ),
                             density=density,
                         )
