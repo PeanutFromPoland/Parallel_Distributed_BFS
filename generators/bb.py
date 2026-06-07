@@ -1,104 +1,122 @@
 import random
 
-from utils import draw_graph
+
+class _FenwickTree:
+    """Prefix tree for fast weighted sampling."""
+
+    def __init__(self, size):
+        self.size = size
+        self.tree = [0.0] * (size + 1)
+
+    def add(self, index, delta):
+        index += 1
+        while index <= self.size:
+            self.tree[index] += delta
+            index += index & -index
+
+    def total(self):
+        return self.prefix_sum(self.size - 1)
+
+    def prefix_sum(self, index):
+        index += 1
+        result = 0.0
+        while index > 0:
+            result += self.tree[index]
+            index -= index & -index
+        return result
+
+    def find_by_prefix(self, target):
+        idx = 0
+        bit = 1 << (self.size.bit_length() - 1)
+        while bit:
+            next_idx = idx + bit
+            if next_idx <= self.size and self.tree[next_idx] < target:
+                target -= self.tree[next_idx]
+                idx = next_idx
+            bit >>= 1
+        return idx
 
 
 def generate_bb_graph(size, m=2, fitness_range=(0.1, 1.0), start_val=1, unidirectional=True):
     """
-    Generuje graf według modelu Bianconi-Barabási.
+    Generate a Bianconi-Barabasi graph.
 
-    Model rozszerza klasyczny model Barabási-Alberta o parametr „fitness"
-    (atrakcyjności) każdego wierzchołka. Prawdopodobieństwo podłączenia
-    nowego wierzchołka do istniejącego zależy od iloczynu stopnia
-    wierzchołka i jego fitness:  P(i) ∝ η_i · k_i
-
-    Parametry
-    ---------
-    size : int
-        Liczba wierzchołków w wynikowym grafie.
-    m : int
-        Liczba krawędzi dodawanych z każdym nowym wierzchołkiem.
-        Musi spełniać 1 <= m < size.
-    fitness_range : tuple[float, float]
-        Zakres (min, max) z którego losowana jest wartość fitness
-        każdego wierzchołka (rozkład jednostajny).
-    start_val : int
-        Wartość pierwszego wierzchołka (numeracja od start_val).
-    unidirectional : bool
-        Jeśli True, krawędzie są dwukierunkowe (graf nieskierowany).
-
-    Zwraca
-    ------
-    dict[int, list[int]]
-        Słownik sąsiedztwa (adjacency list).
+    The original implementation used random.choices over a growing list of
+    weights for every new vertex. That makes generation effectively O(n^2).
+    This version keeps the attachment weights in a Fenwick tree, so each
+    weighted sample and weight update costs O(log n), which is practical for
+    hundreds of thousands of vertices.
     """
     if size < 1:
-        raise ValueError("'size' musi być >= 1.")
+        raise ValueError("'size' must be >= 1.")
     if m < 1:
-        raise ValueError("'m' musi być >= 1.")
+        raise ValueError("'m' must be >= 1.")
     if m >= size:
-        raise ValueError("'m' musi być mniejsze niż 'size'.")
+        raise ValueError("'m' must be smaller than 'size'.")
 
     nodes = list(range(start_val, start_val + size))
     graph = {node: [] for node in nodes}
-    fitness = {node: random.uniform(*fitness_range) for node in nodes}
+    fitness = [random.uniform(*fitness_range) for _ in nodes]
+    degrees = [0] * size
 
-    # --- Inicjalizacja: pełna klika z pierwszych (m+1) wierzchołków ---
-    initial_nodes = nodes[:m + 1]
-    for i, u in enumerate(initial_nodes):
-        for v in initial_nodes[i + 1:]:
+    initial_count = m + 1
+    for i in range(initial_count):
+        u = nodes[i]
+        for j in range(i + 1, initial_count):
+            v = nodes[j]
             graph[u].append(v)
+            degrees[i] += 1
             if unidirectional:
                 graph[v].append(u)
+                degrees[j] += 1
 
-    # --- Dodawanie kolejnych wierzchołków ---
-    # Utrzymujemy listę wag przyrostowo zamiast przeliczać od nowa
-    # w każdej iteracji.  Używamy random.choices (implementacja w C)
-    # zamiast ręcznej pętli kumulacyjnej.
-    existing_nodes = list(initial_nodes)
-    weights = [fitness[n] * max(len(graph[n]), 1) for n in existing_nodes]
-    node_to_idx = {n: i for i, n in enumerate(existing_nodes)}
+    weights = [0.0] * size
+    tree = _FenwickTree(size)
 
-    for new_node in nodes[m + 1:]:
-        # Wybierz m celów bez powtórzeń (ważone losowanie)
-        # Dla m=2: losujemy jednego, zerujemy mu wagę, losujemy drugiego
-        targets = set()
-        zeroed_indices = []
+    def set_weight(index, value):
+        delta = value - weights[index]
+        if delta:
+            weights[index] = value
+            tree.add(index, delta)
 
-        for _ in range(min(m, len(existing_nodes))):
-            if not existing_nodes:
+    existing_count = initial_count
+    for idx in range(existing_count):
+        set_weight(idx, fitness[idx] * max(degrees[idx], 1))
+
+    for new_idx in range(initial_count, size):
+        new_node = nodes[new_idx]
+        targets = []
+        removed_weights = []
+
+        for _ in range(min(m, existing_count)):
+            total_weight = tree.total()
+            if total_weight <= 0:
                 break
-            [chosen] = random.choices(existing_nodes, weights=weights, k=1)
-            if chosen in targets:
-                # Powtórka – spróbuj jeszcze raz (max kilka prób)
-                for _retry in range(10):
-                    [chosen] = random.choices(existing_nodes, weights=weights, k=1)
-                    if chosen not in targets:
-                        break
-            targets.add(chosen)
-            # Tymczasowo zerujemy wagę, żeby nie wylosować ponownie
-            idx = node_to_idx[chosen]
-            zeroed_indices.append((idx, weights[idx]))
-            weights[idx] = 0.0
 
-        # Przywróć wyzerowane wagi i zaktualizuj stopnie
-        for idx, old_w in zeroed_indices:
-            weights[idx] = old_w
+            target_idx = tree.find_by_prefix(random.random() * total_weight)
+            targets.append(target_idx)
+            removed_weights.append((target_idx, weights[target_idx]))
+            set_weight(target_idx, 0.0)
 
-        # Dodaj krawędzie
-        for target in targets:
+        for target_idx, old_weight in removed_weights:
+            set_weight(target_idx, old_weight)
+
+        for target_idx in targets:
+            target = nodes[target_idx]
             graph[new_node].append(target)
+            degrees[new_idx] += 1
             if unidirectional:
                 graph[target].append(new_node)
-            # Aktualizuj wagę target (stopień wzrósł o 1)
-            tidx = node_to_idx[target]
-            weights[tidx] = fitness[target] * len(graph[target])
+                degrees[target_idx] += 1
+            set_weight(target_idx, fitness[target_idx] * max(degrees[target_idx], 1))
 
-        # Dodaj nowy wierzchołek do listy istniejących
-        node_to_idx[new_node] = len(existing_nodes)
-        existing_nodes.append(new_node)
-        weights.append(fitness[new_node] * max(len(graph[new_node]), 1))
+        set_weight(new_idx, fitness[new_idx] * max(degrees[new_idx], 1))
+        existing_count += 1
 
     return graph
 
-draw_graph(generate_bb_graph(10, m=3, fitness_range=(0.2, 0.6), unidirectional=True))
+
+if __name__ == "__main__":
+    from utils import draw_graph
+
+    draw_graph(generate_bb_graph(10, m=3, fitness_range=(0.2, 0.6), unidirectional=True))

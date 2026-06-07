@@ -13,6 +13,13 @@ from src import sequential_bfs
 from src.parallel import create_parallel_context, destroy_parallel_context, parallel_bfs
 from utils import load_graph, collect_graph_files, load_expected, verify_bfs, print_summary
 
+
+def read_graph_header(path):
+    with open(path, "r", encoding="utf-8") as file:
+        nodes, edges = file.readline().split()[:2]
+    return int(nodes), int(edges)
+
+
 def main():
     num_workers = mp.cpu_count()
 
@@ -34,7 +41,18 @@ def main():
     print(f"  Wykonywanie BFS i weryfikacja...")
     print(f"{'-' * 80}")
 
-    context = create_parallel_context(num_workers)
+    max_nodes = 0
+    max_edges = 0
+    for graph_path, _, _ in graph_files:
+        nodes, edges = read_graph_header(graph_path)
+        max_nodes = max(max_nodes, nodes)
+        max_edges = max(max_edges, edges)
+
+    context = create_parallel_context(
+        num_workers,
+        max_nodes=max_nodes,
+        max_edges=max_edges,
+    )
 
     results_seq = []
     results_par = []

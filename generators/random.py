@@ -1,26 +1,27 @@
 import random
 
-from utils import draw_graph
-
 
 def generate_random_graph(size, threshold=0.5, consistency=True, start_val=1, unidirectional=True, seed=42):
+    if not 0 <= threshold <= 1:
+        raise ValueError("'threshold' must be between 0 and 1.")
+
     nodes = list(range(start_val, start_val + size))
     graph = {node: [] for node in nodes}
 
     edges = set()
     max_edges = size * (size - 1) // 2
-    target_edges = max(size - 1, int(max_edges * threshold))
+    density_scale = min(threshold / 0.5, 1.0)
+    scalable_target = max(size - 1, int(size * 15 * density_scale))
+    target_edges = min(max_edges, scalable_target)
 
-    # Dla dużych grafów ograniczamy liczbę krawędzi, aby średni stopień
-    # wierzchołka nie przekraczał 30.  Bez tego ograniczenia threshold=0.3
-    # przy 50 000 wierzchołków oznaczałby ~375 mln krawędzi (~50+ GB RAM).
-    if size > 1000:
-        max_reasonable = size * 15   # avg degree ≤ 30
-        target_edges = min(target_edges, max_reasonable)
+    def edge_key(u, v):
+        a, b = (u, v) if u < v else (v, u)
+        return (a - start_val) * size + (b - start_val)
 
     def add_edge(u, v):
-        if u != v and (u, v) not in edges:
-            edges.add((min(u, v), max(u, v)))
+        key = edge_key(u, v)
+        if u != v and key not in edges:
+            edges.add(key)
             graph[u].append(v)
             graph[v].append(u) if unidirectional else None
 
@@ -38,7 +39,7 @@ def generate_random_graph(size, threshold=0.5, consistency=True, start_val=1, un
         if max_edges <= 500_000:
             # Mały graf – materializacja listy możliwych krawędzi (oryginał)
             all_possible = [
-                (u, v) for u in nodes for v in nodes if u < v and (u, v) not in edges
+                (u, v) for u in nodes for v in nodes if u < v and edge_key(u, v) not in edges
             ]
             random.shuffle(all_possible)
             for u, v in all_possible:
@@ -61,4 +62,7 @@ def generate_random_graph(size, threshold=0.5, consistency=True, start_val=1, un
     return graph
 
 
-draw_graph(generate_random_graph(10))
+if __name__ == "__main__":
+    from utils import draw_graph
+
+    draw_graph(generate_random_graph(10))

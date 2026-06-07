@@ -1,7 +1,5 @@
 from itertools import product
 
-from utils import draw_grid_graph
-
 
 def generate_grid_graph(dimensions, start_val=None, end_val=None):
     """

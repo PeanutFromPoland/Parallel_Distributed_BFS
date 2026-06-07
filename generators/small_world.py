@@ -1,7 +1,5 @@
 import random
 
-from utils import draw_graph
-
 def _is_connected(graph):
     if not graph:
         return True

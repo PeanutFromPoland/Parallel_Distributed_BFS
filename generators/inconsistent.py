@@ -5,7 +5,6 @@ from .random import generate_random_graph
 from .bb import generate_bb_graph
 from .small_world import generate_small_world_graph
 from .grid import generate_grid_graph
-from utils import draw_graph
 
 # Mapowanie nazw typów → funkcji generatorów
 GENERATOR_MAP = {
@@ -32,15 +31,34 @@ def _partition_vertices(total, parts_count, rng):
             f"podgrafów (minimum {min_per_part} wierzchołki na podgraf)."
         )
 
-    sizes = [min_per_part] * parts_count
     remaining = total - min_per_part * parts_count
+    if remaining == 0:
+        return [min_per_part] * parts_count
+    if parts_count == 1:
+        return [total]
 
-    # Losowy przydział pozostałych wierzchołków
-    for _ in range(remaining):
-        idx = rng.randint(0, parts_count - 1)
-        sizes[idx] += 1
+    # Losowy słaby podział remaining metodą stars-and-bars. Koszt zależy od
+    # liczby części, a nie od liczby wszystkich wierzchołków.
+    sequence_length = remaining + parts_count - 1
+    separators = sorted(rng.sample(range(sequence_length), parts_count - 1))
+    extras = [separators[0]]
+    extras.extend(
+        separators[i] - separators[i - 1] - 1
+        for i in range(1, len(separators))
+    )
+    extras.append(sequence_length - separators[-1] - 1)
+    return [min_per_part + extra for extra in extras]
 
-    return sizes
+
+def _factor_pair_near_square(size):
+    width = int(math.sqrt(size))
+    while width > 1 and size % width != 0:
+        width -= 1
+    return width, size // width
+
+
+def _density_degree(density):
+    return max(1, round(density * 8))
 
 
 def _remap_graph(graph, offset):
@@ -65,7 +83,7 @@ def _remap_graph(graph, offset):
     return remapped
 
 
-def _generate_subgraph(gen_type, size, start_val, rng):
+def _generate_subgraph(gen_type, size, start_val, rng, density):
     """
     Generuje pojedynczy podgraf spójny za pomocą wybranego generatora.
 
@@ -97,14 +115,14 @@ def _generate_subgraph(gen_type, size, start_val, rng):
     if gen_type == "random":
         graph = gen_func(
             size=size,
-            threshold=0.3,
+            threshold=density,
             consistency=True,
             start_val=start_val,
             unidirectional=True,
             seed=seed,
         )
     elif gen_type == "bb":
-        m = min(2, size - 1)
+        m = min(_density_degree(density), size - 1)
         random.seed(seed)
         graph = gen_func(
             size=size,
@@ -113,28 +131,26 @@ def _generate_subgraph(gen_type, size, start_val, rng):
             unidirectional=True,
         )
     elif gen_type == "small_world":
-        k = min(4, size - 1)
-        if k % 2 != 0:
-            k = max(2, k - 1)
-        graph = gen_func(
-            size=size,
-            k=k,
-            rewiring_prob=0.1,
-            consistency=True,
-            start_val=start_val,
-            unidirectional=True,
-            seed=seed,
-        )
+        if size == 2:
+            graph = {
+                start_val: [start_val + 1],
+                start_val + 1: [start_val],
+            }
+        else:
+            k = min(2 * _density_degree(density), size - 1)
+            if k % 2 != 0:
+                k -= 1
+            graph = gen_func(
+                size=size,
+                k=k,
+                rewiring_prob=0.1,
+                consistency=True,
+                start_val=start_val,
+                unidirectional=True,
+                seed=seed,
+            )
     elif gen_type == "grid":
-        # Dobieramy wymiary siatki tak, aby iloczyn ≈ size
-        # Tworzymy siatkę 2D o wymiarach w × h ≈ size
-        w = max(1, int(math.sqrt(size)))
-        h = max(1, size // w)
-        # Ewentualna korekta – upewniamy się, że w * h == size
-        # Jeśli nie, zwiększamy h
-        while w * h < size:
-            h += 1
-
+        w, h = _factor_pair_near_square(size)
         graph = gen_func(
             dimensions=(w, h),
         )
@@ -149,6 +165,7 @@ def generate_inconsistent_graph(
     parts_count,
     part_types,
     seed=42,
+    density=0.3,
 ):
     """
     Generuje graf niespójny składający się z kilku podgrafów spójnych.
@@ -160,11 +177,12 @@ def generate_inconsistent_graph(
     parts_count : int
         Liczba podgrafów spójnych (komponentów spójności).
     part_types : list[str]
-        Lista typów generatorów dla kolejnych podgrafów.
+        Cyklicznie powtarzana lista typów generatorów dla kolejnych podgrafów.
         Dozwolone wartości: 'random', 'bb', 'small_world', 'grid'.
-        Długość listy musi być równa parts_count.
     seed : int
         Ziarno losowości dla powtarzalności wyników.
+    density : float
+        Profil gęstości stosowany do komponentów innych niż grid.
 
     Zwraca
     ------
@@ -183,11 +201,10 @@ def generate_inconsistent_graph(
     >>> len(g)
     30
     """
-    if len(part_types) != parts_count:
-        raise ValueError(
-            f"Długość 'part_types' ({len(part_types)}) musi być równa "
-            f"'parts_count' ({parts_count})."
-        )
+    if not part_types:
+        raise ValueError("'part_types' nie może być puste.")
+    if not 0 < density <= 1:
+        raise ValueError("'density' musi należeć do przedziału (0, 1].")
 
     for pt in part_types:
         if pt not in GENERATOR_MAP:
@@ -207,20 +224,21 @@ def generate_inconsistent_graph(
 
     for i in range(parts_count):
         subgraph = _generate_subgraph(
-            gen_type=part_types[i],
+            gen_type=part_types[i % len(part_types)],
             size=sizes[i],
             start_val=current_start,
             rng=rng,
+            density=density,
         )
         combined_graph.update(subgraph)
-        # Używamy len(subgraph), bo grid może wygenerować nieco więcej
-        # wierzchołków niż zaalokowano (w*h ≥ size)
         current_start += len(subgraph)
 
     return combined_graph
 
 
 if __name__ == "__main__":
+    from utils import draw_graph
+
     graph = generate_inconsistent_graph(
         total_vertices=30,
         parts_count=3,

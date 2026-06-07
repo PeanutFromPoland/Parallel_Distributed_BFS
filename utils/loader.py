@@ -84,29 +84,127 @@ def import_from_txt(name):
 BASE_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "../graphs")
 CONNECTED_DIR = os.path.join(BASE_DIR, "connected")
 INCONSISTENT_DIR = os.path.join(BASE_DIR, "inconsistent")
-SIZES = ["small", "medium", "large"]
+SIZES = {
+    "tiny": 50,
+    "small": 500,
+    "medium": 5_000,
+    "large": 50_000,
+    "huge": 500_000,
+}
+DENSITIES = ["sparse", "medium", "dense"]
+PART_COUNTS = {
+    "few": 5,
+    "medium": 50,
+    "many": 500,
+}
 GRAPH_TYPES = ["random", "bb", "small_world", "grid"]
+
+
+def _graph_has_size(filepath, expected_size):
+    try:
+        with open(filepath, "r", encoding="utf-8") as file:
+            return int(file.readline().split()[0]) == expected_size
+    except (OSError, ValueError, IndexError):
+        return False
+
+
+def _iter_graph_instances(graph_dir, size_name, expected_size):
+    if not os.path.isdir(graph_dir):
+        return
+
+    manifest_path = os.path.join(graph_dir, f"{size_name}_instances.txt")
+    try:
+        with open(manifest_path, "r", encoding="utf-8") as file:
+            instance_count = int(file.readline().strip())
+        if instance_count < 1:
+            raise ValueError
+        filenames = [
+            f"{size_name}_{instance_number:03d}.txt"
+            for instance_number in range(1, instance_count + 1)
+        ]
+    except (OSError, ValueError):
+        prefix = f"{size_name}_"
+        filenames = [
+            filename
+            for filename in sorted(os.listdir(graph_dir))
+            if filename.startswith(prefix)
+            and filename.endswith(".txt")
+            and not filename.endswith("_expected.txt")
+        ]
+
+    prefix = f"{size_name}_"
+    for filename in filenames:
+        if not filename.startswith(prefix) or not filename.endswith(".txt"):
+            continue
+        if filename.endswith("_expected.txt"):
+            continue
+
+        instance_id = filename[len(prefix):-4]
+        if not instance_id.isdigit():
+            continue
+
+        graph_path = os.path.join(graph_dir, filename)
+        expected_path = os.path.join(
+            graph_dir,
+            f"{size_name}_{instance_id}_expected.txt",
+        )
+        if (
+            os.path.exists(expected_path)
+            and _graph_has_size(graph_path, expected_size)
+        ):
+            yield graph_path, expected_path, instance_id
+
 
 def collect_graph_files():
     """Zbiera ścieżki do grafów testowych."""
     files = []
     for graph_type in GRAPH_TYPES:
-        for size_name in SIZES:
-            graph_path = os.path.join(CONNECTED_DIR, graph_type, f"{size_name}.txt")
-            expected_path = os.path.join(CONNECTED_DIR, graph_type, f"{size_name}_expected.txt")
-            if os.path.exists(graph_path) and os.path.exists(expected_path):
-                label = f"[Spójny] {graph_type}/{size_name}"
-                files.append((graph_path, expected_path, label))
+        density_names = [None] if graph_type == "grid" else DENSITIES
+        for density_name in density_names:
+            for size_name, expected_size in SIZES.items():
+                graph_dir = os.path.join(CONNECTED_DIR, graph_type)
+                if density_name is not None:
+                    graph_dir = os.path.join(graph_dir, density_name)
+                for graph_path, expected_path, instance_id in _iter_graph_instances(
+                    graph_dir,
+                    size_name,
+                    expected_size,
+                ):
+                    variant = graph_type
+                    if density_name is not None:
+                        variant = f"{variant}/{density_name}"
+                    label = f"[Spójny] {variant}/{size_name} #{instance_id}"
+                    files.append((graph_path, expected_path, label))
 
     combinations = list(itertools.product(GRAPH_TYPES, repeat=2))
     for type_a, type_b in combinations:
         combo_name = f"{type_a}_{type_b}"
-        for size_name in SIZES:
-            graph_path = os.path.join(INCONSISTENT_DIR, size_name, f"{combo_name}.txt")
-            expected_path = os.path.join(INCONSISTENT_DIR, size_name, f"{combo_name}_expected.txt")
-            if os.path.exists(graph_path) and os.path.exists(expected_path):
-                label = f"[Niespójny] {combo_name}/{size_name}"
-                files.append((graph_path, expected_path, label))
+        density_names = [None] if type_a == type_b == "grid" else DENSITIES
+        for part_name, parts_count in PART_COUNTS.items():
+            for density_name in density_names:
+                for size_name, expected_size in SIZES.items():
+                    if expected_size < parts_count * 2:
+                        continue
+                    graph_dir = os.path.join(
+                        INCONSISTENT_DIR,
+                        combo_name,
+                        part_name,
+                    )
+                    if density_name is not None:
+                        graph_dir = os.path.join(graph_dir, density_name)
+                    for graph_path, expected_path, instance_id in _iter_graph_instances(
+                        graph_dir,
+                        size_name,
+                        expected_size,
+                    ):
+                        variant = f"{combo_name}/{part_name}"
+                        if density_name is not None:
+                            variant = f"{variant}/{density_name}"
+                        label = (
+                            f"[Niespójny] {variant}/{size_name} "
+                            f"#{instance_id}"
+                        )
+                        files.append((graph_path, expected_path, label))
     return files
 
 

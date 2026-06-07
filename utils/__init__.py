@@ -1,3 +1,7 @@
 from .loader import *
-from .visualization import *
 from .comparison import *
+
+try:
+    from .visualization import *
+except ModuleNotFoundError:
+    pass
