@@ -60,10 +60,14 @@ docker compose down
 
 ### Zmienne środowiskowe (coordinator)
 
-| Zmienna     | Domyślna wartość                              | Opis                                |
-|-------------|-----------------------------------------------|-------------------------------------|
-| `WORKERS`   | `worker-1:5000,worker-2:5000,worker-3:5000`   | Lista adresów workerów (host:port)  |
-| `GRAPHS_DIR`| `/app/graphs`                                 | Ścieżka do katalogu z grafami       |
+| Zmienna         | Domyślna wartość                            | Opis                               |
+|-----------------|---------------------------------------------|------------------------------------|
+| `WORKERS`       | `worker-1:5000,worker-2:5000,worker-3:5000` | Lista workerów                     |
+| `GRAPHS_DIR`    | `/app/graphs`                               | Katalog grafów                     |
+| `BENCHMARK_RUNS`| `3`                                         | Liczba prób algorytmu na graf      |
+| `RESULTS_DIR`   | `/app/results`                              | Katalog CSV i profilu              |
+| `CSV_PATH`      | `/app/results/distributed_bfs_results.csv` | Ścieżka pliku CSV                  |
+| `PROFILE_PATH`  | `/app/results/coordinator.prof`             | Ścieżka profilu `cProfile`         |
 
 ### Zmienne środowiskowe (worker)
 
@@ -111,13 +115,22 @@ Coordinator automatycznie:
 1. Wykonuje sekwencyjny BFS (baseline) dla każdego grafu
 2. Wykonuje rozproszony BFS (3 workery)
 3. Porównuje wynik z oczekiwanym (`*_expected.txt`)
-4. Drukuje tabelę z czasami, speedupem i wynikami weryfikacji
+4. Powtarza oba algorytmy domyślnie 3 razy dla każdego grafu
+5. Drukuje tabelę ze średnimi czasami, odchyleniem, speedupem i weryfikacją
+6. Eksportuje wszystkie próby i statystyki do `results/distributed_bfs_results.csv`
+7. Zapisuje profil `cProfile` do `results/coordinator.prof`
+
+Liczbę powtórzeń można zmienić przez zmienną `BENCHMARK_RUNS` w
+`docker-compose.yml`.
 
 ### Zakres pomiaru czasu
 
 - Czas sekwencyjny obejmuje samo przejście BFS po już wczytanym grafie.
 - Czas rozproszony obejmuje detekcję składowych, przygotowanie podgrafów,
   harmonogram zadań, komunikację TCP oraz BFS wykonywany przez workery.
+- CSV zawiera również osobne czasy detekcji, przygotowania podgrafów,
+  harmonogramowania oraz wykonania i komunikacji dla każdej próby, a także
+  średnią, medianę, minimum, maksimum i odchylenie standardowe.
 - Połączenie z workerami, start kontenerów, wczytanie grafu i wczytanie pliku
   `*_expected.txt` nie są wliczane do żadnego z porównywanych czasów.
 - Obecny podział pracy odbywa się po składowych. Dla grafu spójnego pracuje

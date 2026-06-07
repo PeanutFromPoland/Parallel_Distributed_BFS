@@ -10,7 +10,7 @@ def verify_bfs(actual_components, expected_components):
         )
 
     for i, ((a_start, a_dist), (e_start, e_dist)) in enumerate(
-            zip(actual_components, expected_components)
+        zip(actual_components, expected_components)
     ):
         if a_start != e_start:
             return False, (
@@ -36,70 +36,74 @@ def verify_bfs(actual_components, expected_components):
     return True, "OK"
 
 
-def print_summary(results_seq, results_par, num_workers):
-    """Drukuje zestawienie wyników sekwencyjnych i równoległych."""
-    print("\n" + "=" * 120)
-    print("  PODSUMOWANIE – PARALLEL BFS BENCHMARK")
-    print("=" * 120)
+def print_summary(results, num_workers, runs):
+    """Drukuje zestawienie średnich wyników sekwencyjnych i równoległych."""
+    print("\n" + "=" * 132)
+    print("  PODSUMOWANIE - PARALLEL BFS BENCHMARK")
+    print("=" * 132)
 
     header = (
         f"{'Lp.':<5} {'Wierz.':<8} {'Kraw.':<10} "
-        f"{'Seq [s]':<14} {'Par [s]':<14} {'Speedup':<10} "
-        f"{'Popr.':<8} {'Graf'}"
+        f"{'Seq avg [s]':<14} {'Seq sd':<11} "
+        f"{'Par avg [s]':<14} {'Par sd':<11} "
+        f"{'Speedup':<10} {'Popr.':<8} {'Graf'}"
     )
     print(header)
-    print("-" * 120)
+    print("-" * 132)
 
-    total_seq_inconsistent = 0.0
     total_seq_connected = 0.0
-    total_par_inconsistent = 0.0
+    total_seq_inconsistent = 0.0
     total_par_connected = 0.0
+    total_par_inconsistent = 0.0
     all_correct = True
     errors = []
 
-    for i, (r_seq, r_par) in enumerate(zip(results_seq, results_par), 1):
-        label, nodes, edge_count, seq_time, _, _ = r_seq
-        _, _, _, par_time, correct, msg = r_par
-
-        speedup = seq_time / par_time if par_time > 0 else float('inf')
-        status = "[OK]" if correct else "[BLAD]"
+    for i, result in enumerate(results, 1):
+        seq_mean = result["seq_stats"]["mean"]
+        par_mean = result["par_stats"]["mean"]
+        speedup = seq_mean / par_mean if par_mean > 0 else float("inf")
+        status = "[OK]" if result["correct"] else "[BLAD]"
 
         print(
-            f"{i:<5} {nodes:<8} {edge_count:<10} "
-            f"{seq_time:<14.6f} {par_time:<14.6f} {speedup:<10.2f} "
-            f"{status:<8} {label}"
+            f"{i:<5} {result['nodes']:<8} {result['edges']:<10} "
+            f"{seq_mean:<14.6f} {result['seq_stats']['stdev']:<11.6f} "
+            f"{par_mean:<14.6f} {result['par_stats']['stdev']:<11.6f} "
+            f"{speedup:<10.2f} {status:<8} {result['label']}"
         )
 
-        if "[Spójny]" in label:
-            total_seq_connected += seq_time
-            total_par_connected += par_time
+        if "[Spójny]" in result["label"]:
+            total_seq_connected += seq_mean
+            total_par_connected += par_mean
         else:
-            total_seq_inconsistent += seq_time
-            total_par_inconsistent += par_time
-        if not correct:
+            total_seq_inconsistent += seq_mean
+            total_par_inconsistent += par_mean
+
+        if not result["correct"]:
             all_correct = False
-            errors.append((label, msg))
+            errors.append((result["label"], result["msg"]))
 
-    total_seq = total_seq_inconsistent + total_seq_connected
-    total_par = total_par_inconsistent + total_par_connected
+    total_seq = total_seq_connected + total_seq_inconsistent
+    total_par = total_par_connected + total_par_inconsistent
+    total_speedup = total_seq / total_par if total_par > 0 else float("inf")
 
-    print("-" * 120)
-    total_speedup = total_seq / total_par if total_par > 0 else float('inf')
+    print("-" * 132)
     print(f"\n  Procesy robocze:                  {num_workers}")
-    print(f"  Łączny czas sekwencyjny:          {total_seq:.4f}s")
-    print(f"        czas (spójne):              {total_seq_connected:.4f}s")
-    print(f"        czas (niespójne):           {total_seq_inconsistent:.4f}s")
-    print(f"  Łączny czas równoległy:           {total_par:.4f}s")
-    print(f"        czas (spójne):              {total_par_connected:.4f}s")
-    print(f"        czas (niespójne):           {total_par_inconsistent:.4f}s")
-    print(f"  Łączny speedup:                   {total_speedup:.2f}x")
-    print(f"  Liczba grafów:                    {len(results_seq)}")
+    print(f"  Powtórzenia na graf:              {runs}")
+    print(f"  Suma średnich czasów sekw.:       {total_seq:.4f}s")
+    print(f"        grafy spójne:               {total_seq_connected:.4f}s")
+    print(f"        grafy niespójne:            {total_seq_inconsistent:.4f}s")
+    print(f"  Suma średnich czasów równ.:       {total_par:.4f}s")
+    print(f"        grafy spójne:               {total_par_connected:.4f}s")
+    print(f"        grafy niespójne:            {total_par_inconsistent:.4f}s")
+    print(f"  Łączny speedup ze średnich:       {total_speedup:.2f}x")
+    print(f"  Liczba grafów:                    {len(results)}")
+    print(f"  Łączna liczba prób:               {len(results) * runs}")
 
     if all_correct:
-        print(f"\n  [OK] WSZYSTKIE TESTY POPRAWNOSCI ZALICZONE")
+        print("\n  [OK] WSZYSTKIE TESTY POPRAWNOSCI ZALICZONE")
     else:
         print(f"\n  [BLAD] BLEDY W {len(errors)} GRAFACH:")
         for label, msg in errors:
             print(f"    - {label}: {msg}")
 
-    print("=" * 120)
+    print("=" * 132)

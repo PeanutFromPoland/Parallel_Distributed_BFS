@@ -38,6 +38,7 @@ services:
       dockerfile: coordinator/Dockerfile
     volumes:
       - ../graphs:/app/graphs:ro
+      - ../results:/app/results
     depends_on:
       - worker-1
       - worker-2
@@ -45,6 +46,8 @@ services:
     environment:
       - WORKERS=worker-1:5000,worker-2:5000,worker-3:5000
       - GRAPHS_DIR=/app/graphs
+      - BENCHMARK_RUNS=3
+      - RESULTS_DIR=/app/results
     networks:
       - bfs-net
 
