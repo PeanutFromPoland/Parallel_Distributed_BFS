@@ -6,6 +6,7 @@ from collections import deque
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."))
 from shared.protocol import send_msg, recv_msg
+import cProfile
 
 WORKER_PORT = int(os.environ.get("WORKER_PORT", "5000"))
 WORKER_NAME = os.environ.get("HOSTNAME", "worker-?")
@@ -106,4 +107,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    cProfile.run("main()")

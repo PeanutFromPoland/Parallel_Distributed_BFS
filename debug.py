@@ -4,4 +4,4 @@ import cProfile
 
 if __name__ == "__main__":
     mp.freeze_support()
-    cProfile.run(main())
+    cProfile.run("main()")
