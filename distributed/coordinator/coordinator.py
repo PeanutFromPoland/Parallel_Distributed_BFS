@@ -485,6 +485,7 @@ def main():
 
                 speedup = seq_time / dist_time if dist_time > 0 else float("inf")
                 status = "OK" if correct else "BLAD"
+
                 log.info(
                     "run=%d/%d seq=%.6fs dist=%.6fs speedup=%.2fx "
                     "detect=%.6fs prepare=%.6fs schedule=%.6fs "
@@ -551,13 +552,4 @@ def main():
 
 
 if __name__ == "__main__":
-    os.makedirs(os.path.dirname(os.path.abspath(PROFILE_PATH)), exist_ok=True)
-    profiler = cProfile.Profile()
-    try:
-        profiler.enable()
-        main()
-    finally:
-        profiler.disable()
-        profiler.dump_stats(PROFILE_PATH)
-        print(f"\n  Profil cProfile zapisano w: {PROFILE_PATH}")
-        pstats.Stats(profiler).sort_stats("cumulative").print_stats(40)
+    main()

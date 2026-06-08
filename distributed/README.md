@@ -50,7 +50,7 @@ docker compose up --build
 
 # 3. (Opcjonalnie) Uruchom w tle
 docker compose up --build -d
-docker compose logs -f coordinator
+docker compose logs -f
 
 # 4. Zatrzymaj
 docker compose down
@@ -68,12 +68,14 @@ docker compose down
 | `RESULTS_DIR`   | `/app/results`                              | Katalog CSV i profilu              |
 | `CSV_PATH`      | `/app/results/distributed_bfs_results.csv` | Ścieżka pliku CSV                  |
 | `PROFILE_PATH`  | `/app/results/coordinator.prof`             | Ścieżka profilu `cProfile`         |
+| `LOG_LEVEL`     | `WARNING`                                   | Poziom logów (`INFO` w Compose)     |
 
 ### Zmienne środowiskowe (worker)
 
 | Zmienna       | Domyślna wartość | Opis              |
 |---------------|------------------|--------------------|
 | `WORKER_PORT` | `5000`           | Port nasłuchiwania |
+| `LOG_LEVEL`   | `WARNING`        | Poziom logów (`DEBUG` w Compose) |
 
 ### Skalowanie workerów
 

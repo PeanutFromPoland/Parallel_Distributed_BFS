@@ -7,6 +7,7 @@ services:
       - "5000"
     environment:
       - WORKER_PORT=5000
+      - LOG_LEVEL=DEBUG
     networks:
       - bfs-net
 
@@ -18,6 +19,7 @@ services:
       - "5000"
     environment:
       - WORKER_PORT=5000
+      - LOG_LEVEL=DEBUG
     networks:
       - bfs-net
 
@@ -29,6 +31,7 @@ services:
       - "5000"
     environment:
       - WORKER_PORT=5000
+      - LOG_LEVEL=DEBUG
     networks:
       - bfs-net
 
@@ -48,6 +51,7 @@ services:
       - GRAPHS_DIR=/app/graphs
       - BENCHMARK_RUNS=3
       - RESULTS_DIR=/app/results
+      - LOG_LEVEL=INFO
     networks:
       - bfs-net
 
