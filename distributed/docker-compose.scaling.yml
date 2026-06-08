@@ -1,0 +1,67 @@
+x-worker: &worker
+  build:
+    context: .
+    dockerfile: worker/Dockerfile
+  image: distributed-scaling-worker
+  expose:
+    - "5000"
+  environment:
+    WORKER_PORT: "5000"
+    LOG_LEVEL: ${LOG_LEVEL:-WARNING}
+  networks:
+    - bfs-net
+  volumes:
+    - ../results:/app/results
+
+services:
+  worker-1:
+    <<: *worker
+
+  worker-2:
+    <<: *worker
+
+  worker-3:
+    <<: *worker
+
+  worker-4:
+    <<: *worker
+
+  worker-5:
+    <<: *worker
+
+  worker-6:
+    <<: *worker
+
+  worker-7:
+    <<: *worker
+
+  worker-8:
+    <<: *worker
+
+  worker-9:
+    <<: *worker
+
+  worker-10:
+    <<: *worker
+
+  coordinator:
+    build:
+      context: .
+      dockerfile: coordinator/Dockerfile
+    image: distributed-scaling-coordinator
+    volumes:
+      - ../graphs:/app/graphs:ro
+      - ../results:/app/results
+    environment:
+      WORKERS: ${WORKERS:?Set WORKERS to a comma-separated host list}
+      GRAPHS_DIR: /app/graphs
+      BENCHMARK_RUNS: ${BENCHMARK_RUNS:-3}
+      RESULTS_DIR: /app/results
+      CSV_PATH: ${CSV_PATH:-/app/results/scaling/distributed_workers.csv}
+      LOG_LEVEL: ${LOG_LEVEL:-WARNING}
+    networks:
+      - bfs-net
+
+networks:
+  bfs-net:
+    driver: bridge

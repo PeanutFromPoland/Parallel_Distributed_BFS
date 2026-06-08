@@ -1,0 +1,3 @@
+﻿variant,workers,configurations,sequential_sum_s,variant_sum_s,global_speedup,all_correct,source_csv
+parallel,16,3010,296.65241696666175,346.1616710666659,0.8569764990229973,True,results\parallel_bfs_results.csv
+distributed,3,3010,391.3109633429838,1415.3515757346715,0.2764761562086541,True,results\distributed_bfs_results.csv

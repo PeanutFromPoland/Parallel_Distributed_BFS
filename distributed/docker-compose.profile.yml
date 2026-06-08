@@ -1,0 +1,38 @@
+services:
+  worker-1:
+    command: ["python", "-u", "profile_worker.py"]
+    environment:
+      - NODE_NAME=worker-1
+      - PROFILE_DIR=/app/results/profiles
+      - LOG_LEVEL=${PROFILE_LOG_LEVEL:-WARNING}
+    volumes:
+      - ../results:/app/results
+
+  worker-2:
+    command: ["python", "-u", "profile_worker.py"]
+    environment:
+      - NODE_NAME=worker-2
+      - PROFILE_DIR=/app/results/profiles
+      - LOG_LEVEL=${PROFILE_LOG_LEVEL:-WARNING}
+    volumes:
+      - ../results:/app/results
+
+  worker-3:
+    command: ["python", "-u", "profile_worker.py"]
+    environment:
+      - NODE_NAME=worker-3
+      - PROFILE_DIR=/app/results/profiles
+      - LOG_LEVEL=${PROFILE_LOG_LEVEL:-WARNING}
+    volumes:
+      - ../results:/app/results
+
+  coordinator:
+    command: ["python", "-u", "profile_coordinator.py"]
+    environment:
+      - NODE_NAME=coordinator
+      - PROFILE_DIR=/app/results/profiles
+      - PROFILE_PATH=/app/results/profiles/coordinator.prof
+      - PROFILE_TXT_PATH=/app/results/profiles/coordinator.txt
+      - PROFILE_GRAPH_PATH=${PROFILE_GRAPH_PATH:-/app/graphs/inconsistent/bb_bb/many/sparse/huge_001.txt}
+      - BENCHMARK_RUNS=${PROFILE_BENCHMARK_RUNS:-1}
+      - LOG_LEVEL=${PROFILE_LOG_LEVEL:-WARNING}
