@@ -56,6 +56,39 @@ docker compose logs -f
 docker compose down
 ```
 
+## Profilowanie jednego dużego grafu
+
+Osobny wariant Compose uruchamia ten sam zestaw węzłów (`coordinator`,
+`worker-1`, `worker-2`, `worker-3`), ale ogranicza benchmark do jednego
+wskazanego grafu i zapisuje profil `cProfile` dla każdego węzła:
+
+```bash
+docker compose -f docker-compose.yml -f docker-compose.profile.yml up --build
+```
+
+Domyślnie profilowany jest graf:
+
+```text
+/app/graphs/inconsistent/bb_bb/many/sparse/huge_001.txt
+```
+
+Inny graf można wskazać zmienną `PROFILE_GRAPH_PATH`:
+
+```bash
+PROFILE_GRAPH_PATH=/app/graphs/inconsistent/grid_grid/many/huge_001.txt \
+docker compose -f docker-compose.yml -f docker-compose.profile.yml up --build
+```
+
+Profile binarne i tekstowe podsumowania trafiają do:
+
+```text
+../results/profiles/
+```
+
+Domyślny poziom logowania podczas profilowania to `WARNING`, aby obsługa
+logów nie zniekształcała wyników. Można go zmienić zmienną
+`PROFILE_LOG_LEVEL`.
+
 ## Konfiguracja
 
 ### Zmienne środowiskowe (coordinator)
@@ -120,7 +153,8 @@ Coordinator automatycznie:
 4. Powtarza oba algorytmy domyślnie 3 razy dla każdego grafu
 5. Drukuje tabelę ze średnimi czasami, odchyleniem, speedupem i weryfikacją
 6. Eksportuje wszystkie próby i statystyki do `results/distributed_bfs_results.csv`
-7. Zapisuje profil `cProfile` do `results/coordinator.prof`
+7. W wariancie profilującym zapisuje profile każdego węzła do
+   `results/profiles/`
 
 Liczbę powtórzeń można zmienić przez zmienną `BENCHMARK_RUNS` w
 `docker-compose.yml`.

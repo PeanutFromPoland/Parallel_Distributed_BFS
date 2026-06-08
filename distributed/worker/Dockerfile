@@ -7,6 +7,7 @@ COPY shared/ /app/shared/
 
 # Kopiuj workera
 COPY worker/worker.py /app/worker.py
+COPY worker/profile_worker.py /app/profile_worker.py
 
 EXPOSE 5000
 
