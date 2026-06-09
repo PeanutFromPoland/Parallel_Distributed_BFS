@@ -1281,10 +1281,10 @@ coordinator-worker i analiza narzutów, ale nie jako szybszy zamiennik baseline'
 
 ## 11. AI use log
 
-| Data / etap | Do czego użyto AI | Co zostało przyjęte | Co poprawiono ręcznie |
-| --- | --- | --- | --- |
-| [uzupełnić] | [uzupełnić] | [uzupełnić] | [uzupełnić] |
-| [uzupełnić] | [uzupełnić] | [uzupełnić] | [uzupełnić] |
+| Etap                   | Do czego użyto AI                                     | Co zostało przyjęte | Co poprawiono ręcznie |
+|------------------------|-------------------------------------------------------| --- | --- |
+| [uzupełnić]            | [uzupełnić]                                           | [uzupełnić] | [uzupełnić] |
+| [Rozbudowa benchmarka] | [Rozbudowa skryptu generatora grafów, miernika czasu] | [uzupełnić] | [uzupełnić] |
 
 ## 12. Uruchomienie i reprodukowalność
 
