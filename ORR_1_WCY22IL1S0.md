@@ -88,7 +88,7 @@ Program zwraca listę dystansów wierzchołków od wierzchołka początkowego w 
 Każda implementacja powinna:
 
 - przyjmować graf oraz wierzchołek startowy,
-- wyznaczać odległość od wierzchołka startowego do  wszystkich osiągalnych wierzchołków,
+- wyznaczać odległość od wierzchołka startowego do wszystkich osiągalnych wierzchołków,
 - poprawnie obsługiwać grafy:
     - rzadkie i gęste,
     - małe i duże,
@@ -679,180 +679,293 @@ przyspieszenie względem wersji sekwencyjnej, a wartość mniejsza od `1×` ozna
 
 ### 9.5. Interpretacja wyników
 
-#### Co rzeczywiście przyspiesza
+#### Obraz ogólny
 
-Największy zysk daje wersja równoległa dla dużych i gęstych grafów, ponieważ koszt
-przejrzenia list sąsiedztwa jest wtedy wystarczająco duży, aby zamortyzować wywołania
-`pool.map` i synchronizację kolejnych frontierów. Spośród 602 zagregowanych konfiguracji
-60 osiągnęło speedup większy od 1. Najlepsze przykłady to: spójny
-`random/dense/huge` (**3,16×**), spójny `random/medium/huge` (**2,82×**),
-niespójny `random_random/few/dense/huge` (**2,32×**), niespójny
-`random_bb/few/dense/huge` (**2,18×**) oraz niespójny
-`bb_random/few/dense/huge` (**2,18×**).
+Wyniki obejmują **68 profili danych** opisanych
+przez liczbę wierzchołków, profil gęstości i liczbę części. Dla każdego profilu
+porównano cztery konfiguracje równoległe i cztery rozproszone, czyli po **272 porównania**
+na wariant. Zaniedbana została struktura grafu.
 
-W całym benchmarku wersja równoległa nie uzyskała jednak globalnego przyspieszenia.
-Suma średnich czasów sekwencyjnych wyniosła **296,6524 s**, a suma raportowanych czasów
-równoległych **346,1617 s**, co daje globalny speedup **0,857×**. Wynik ten jest dodatkowo
-korzystny dla wersji równoległej, ponieważ `par_time` nie obejmuje konwersji do CSR ani
-kopiowania danych do pamięci współdzielonej. Nie należy więc interpretować **0,857×** jako
-pełnego speedupu end-to-end; po doliczeniu przygotowania danych byłby on niższy.
+Wariant równoległy przekroczył `1×` w **81 z 272** porównań i co najmniej jedna
+konfiguracja przyspieszyła wykonanie dla **22 z 68** profili. Wariant rozproszony nie
+przekroczył `1×` w żadnym z 272 porównań. Oznacza to, że lokalna równoległość
+może być korzystna dla wybranych danych, natomiast badana architektura coordinator-worker
+nie była szybsza od wspólnego baseline'u sekwencyjnego.
 
-Wariant rozproszony ma naturalne warunki do równoległości dla grafu z kilkoma dużymi,
-niezależnymi składowymi. Najbliższa temu jest konfiguracja `few=5`, ponieważ pozwala
-obciążyć trzy workery bez tworzenia setek drobnych wiadomości. Sam fakt posiadania wielu
-składowych nie wystarcza: przy `many=500` rośnie liczba serializacji i operacji
-scatter-gather, a pojedyncze zadania stają się zbyt małe.
+#### Wersja równoległa
 
-Suma średnich czasów baseline'u kontenerowego wyniosła **391,3110 s**, a wersji
-rozproszonej **1415,3516 s**, czyli globalny speedup wyniósł **0,277×**. Przy agregacji
-stosowanej w tabeli tylko jedna z 602 konfiguracji przekroczyła 1:
-`random_bb/few/sparse/tiny` (**1,16×**). Następne wyniki to
-`small_world_bb/few/sparse/tiny` (**0,78×**), `grid_grid/few/tiny` (**0,77×**),
-`small_world_grid/few/sparse/tiny` (**0,75×**) i
-`small_world_random/few/sparse/tiny` (**0,71×**).
+Najbardziej wiarygodne przyspieszenia pojawiają się dla dużych i bardzo dużych grafów,
+gdy koszt przejścia po krawędziach jest wystarczający do zamortyzowania synchronizacji
+procesów. Dla grafu spójnego o 500 000 wierzchołkach najlepsze wyniki wyniosły:
 
-Pozorne zwycięstwo dla grafu `tiny` nie jest dowodem skalowalności. Mierzone czasy są
-rzędu pojedynczych milisekund, a pierwsza instancja niektórych konfiguracji zawiera
-widoczny efekt rozgrzewania środowiska. Średnia ilorazów i iloraz średnich dają przez to
-nieco inne rankingi. Wiarygodniejszym wnioskiem jest brak przyspieszenia dla dużych
-grafów oraz globalny wynik **0,277×**, a nie pojedynczy rezultat `tiny`.
+- profil gęsty: **2,598×** dla `Parallel C12`,
+- profil średni: **2,270×** dla `Parallel C12`,
+- profil rzadki: **1,425×** dla `Parallel C8`.
 
-#### Gdzie pojawia się największy narzut
+Podobny trend wystąpił dla grafów z pięcioma częściami. Dla profilu `huge & dense`
+najlepszy był `Parallel C16` z wynikiem **1,928×**, a dla `huge & medium` uzyskano
+**1,570×**. Zwiększanie liczby procesów nie daje jednak monotonicznej poprawy. Spośród
+68 profili najlepsza była konfiguracja C12 w 26 przypadkach, C8 w 21, C16 w 12, a C4
+w 9 przypadkach. Optymalna liczba procesów zależy więc od ilości pracy w frontierach
+i kosztu synchronizacji, a nie wyłącznie od liczby dostępnych rdzeni.
 
-Profil sekwencyjny dla grafu `bb_bb/many/sparse/huge` (500 000 wierzchołków,
-999 000 wpisów list sąsiedztwa i 500 składowych) objął 5 001 073 wywołania funkcji
-i trwał **1,466 s**. `load_graph` zajęło **1,173 s** czasu skumulowanego, a
-`sequential_bfs` **0,265 s**, w tym 500 wywołań `partial_bfs` zajęło **0,238 s**.
-Około 80% czasu pełnego uruchomienia stanowiło więc tekstowe wczytanie i parsowanie
-niemal miliona wierszy, a nie właściwy BFS.
+Iloraz sum czasów dla 68 profili wynosi **0,894×** dla C4, **1,004×** dla C8,
+**1,000×** dla C12 i **0,995×** dla C16. W ujęciu całego zbioru C8 i C12 są
+zatem jedynie na granicy czasu sekwencyjnego. Ponadto raportowany czas równoległy nie
+obejmuje konwersji grafu do CSR ani kopiowania danych do pamięci współdzielonej. Pełny
+wynik end-to-end byłby z tego powodu mniej korzystny.
 
-W wersji równoległej profil pełnego wywołania trwał **3,307 s**. `load_graph` zajęło
-**1,708 s**, `graph_to_csr` **0,489 s**, a raportowany fragment obliczeniowy
-`parallel_bfs` tylko **0,038 s** czasu własnego. `pool.map` miało **1,408 s** czasu
-skumulowanego, a znaczną część profilu stanowiło oczekiwanie i komunikacja
-(`connection.wait`, `connection.poll`, `queues.empty`). Profil dotyczył dużego grafu
-z wieloma składowymi, lecz wiele jego frontierów i zadań było małych. Wniosek powinien
-zatem dotyczyć zbyt małej pracy na pojedyncze wywołanie IPC, a nie wyłącznie „małych
-grafów”.
+Bardzo wysokie wartości dla części profili `tiny`, dochodzące do **36,559×**, nie są
+dowodem skalowalności. Czasy mieszczą się tam w dziesiątkach mikrosekund, dlatego
+pojedyncze pomiary rozgrzewające i wartości odstające baseline'u silnie zmieniają iloraz.
+Dodatkowo wspólna kolumna `Seq` agreguje pomiary lokalne i kontenerowe. Wnioski o wydajności
+należy więc opierać przede wszystkim na profilach `large` i `huge`.
 
-Profil koordynatora wariantu rozproszonego dla tego samego grafu trwał **4,868 s**.
-Największe pozycje to:
+#### Wersja rozproszona
 
-- `load_graph`: **1,770 s**,
-- całe `distributed_bfs`: **1,543 s**,
-- `load_expected`: **0,695 s**,
-- detekcja składowych: **0,630 s**,
-- sekwencyjny baseline w kontenerze: **0,458 s**,
-- utworzenie 500 podgrafów (`extract_subgraph`): **0,406 s**.
+Żadna konfiguracja rozproszona nie osiągnęła przyspieszenia. Najlepszy rezultat to
+**0,586×** dla grafu `few parts tiny & grid` i dwóch stacji, co nadal oznacza wykonanie
+około 1,7 raza wolniejsze od baseline'u. Dla całego zbioru iloraz sum czasów wyniósł:
 
-Profil potwierdza, że wąskim gardłem koordynatora jest przede wszystkim przygotowanie
-danych. Dla całego CSV faza przygotowania podgrafów stanowiła około **41,4%** czasu
-rozproszonego, detekcja składowych **29,9%**, wykonanie wraz z komunikacją **28,6%**,
-a scheduling tylko **0,02%**.
+- **0,279×** dla 2 stacji,
+- **0,237×** dla 3 stacji,
+- **0,286×** dla 5 stacji,
+- **0,288×** dla 10 stacji.
 
-Każdy worker przetworzył około 166-167 składowych. Jego profil trwał około
-**5,05-5,11 s**, ale ponad **4,63 s** przypadało na blokujące `socket.recv`, czyli
-oczekiwanie na zadania i dane. Łączny lokalny BFS workera zajmował tylko
-**0,12-0,13 s**, deserializacja `pickle.loads` około **0,02-0,03 s**, a wysyłanie
-wyników kilka milisekund. Nie potwierdza to tezy, że sama serializacja jest dominującym
-kosztem. Największy problem stanowi sekwencyjna praca koordynatora przed wysłaniem zadań
-oraz zbyt mały koszt obliczeń przypadający na pojedyncze zadanie.
+Najlepszy wynik globalny uzyskało 10 stacji, ale wartość **0,288×** oznacza nadal
+około 3,5-krotne spowolnienie. Dwie stacje były najlepszą konfiguracją dla 32 profili,
+10 stacji dla 22, a 5 stacji dla 14. Konfiguracja z trzema stacjami nie była najlepsza dla
+żadnego profilu. Brak monotonicznego skalowania wskazuje, że dodatkowe stacje zwiększają
+koszt komunikacji i koordynacji szybciej, niż skracają lokalne obliczenia BFS.
 
-#### Kiedy dodatkowa złożoność ma sens
+Przyczyną jest zakres mierzonego `dist_time`, który obejmuje detekcję składowych,
+budowanie podgrafów, scheduling, serializację i transmisję TCP. Koordynator wykonuje
+znaczną część pracy sekwencyjnie przed rozpoczęciem BFS na workerach. W grafie spójnym
+tylko jeden worker otrzymuje użyteczne zadanie, a dla wielu małych części koszt utworzenia
+i przesłania zadań przewyższa koszt samego BFS.
 
-Dodatkowa złożoność wersji równoległej ma sens dla największych i najgęstszych grafów,
-gdy frontier wielokrotnie przekracza próg równoległości i każdy proces otrzymuje
-wystarczająco dużo krawędzi do przejrzenia. Potwierdzają to wyniki `random/huge` oraz
-część gęstych konfiguracji `few/huge`. Aby ocenić korzyść end-to-end, należałoby jednak
-włączyć do `par_time` konwersję CSR i kopiowanie do pamięci współdzielonej.
+#### Wpływ parametrów grafu
 
-Architektura rozproszona ma sens, gdy dane są już rozdzielone między węzły albo gdy
-koordynator nie musi wcześniej samodzielnie wykrywać składowych i budować ich pełnych
-kopii. Korzystny przypadek powinien zawierać co najmniej tyle dużych, zbliżonych kosztowo
-zadań, ilu jest workerów, a czas lokalnych obliczeń powinien być znacznie większy od
-kosztu serializacji i transportu. Badany model z centralnym przygotowaniem wszystkich
-podgrafów nie spełnił tych warunków.
+Gęstość pomaga przede wszystkim wersji równoległej dla dużych grafów. Większa liczba
+krawędzi zwiększa pracę obliczeniową przypadającą na proces, dzięki czemu narzut IPC
+stanowi mniejszą część czasu. Sam rozmiar nie wystarcza: dla 500 000 wierzchołków i
+500 części najlepszy speedup równoległy wynosi tylko około **0,60×**. Fragmentacja pracy
+na wiele małych składowych ogranicza korzyści nawet przy dużym grafie.
 
-#### Kiedy dodatkowa złożoność jest przerostem formy nad treścią
+Liczba części ma wyraźnie negatywny wpływ na obie implementacje. Dla jednej lub pięciu
+części wersja równoległa często wykorzystuje duże zadania. Przy 50 częściach tylko
+profil `huge & dense` nieznacznie przekracza `1×` (**1,077×** dla C16), natomiast przy
+500 częściach żaden profil nie osiąga przyspieszenia. W wersji rozproszonej więcej
+części daje więcej potencjalnych zadań, lecz jednocześnie zwiększa koszt detekcji,
+ekstrakcji podgrafów i komunikacji, dlatego nie prowadzi do poprawy całkowitego czasu.
 
-Dla małych i rzadkich grafów wersja sekwencyjna jest najlepsza, ponieważ nie ponosi
-kosztu tworzenia zadań, synchronizacji i IPC. Najsłabsze konfiguracje równoległe to
-między innymi spójny `random/sparse/medium` (**0,04×**), spójny
-`bb/sparse/medium` (**0,25×**) oraz niespójny `random_bb/few/sparse/medium`
-(**0,26×**). W tych przypadkach praca na frontierze jest zbyt mała względem narzutu.
+#### Wniosek
 
-Wersja rozproszona jest przerostem formy dla grafu spójnego, ponieważ użyteczną pracę
-wykonuje jeden worker. Jest również niekorzystna dla setek małych składowych: mimo że
-wszystkie trzy workery są zajęte, koordynator musi wykryć 500 składowych, utworzyć
-500 słowników podgrafów i wykonać 500 cykli wysłania oraz odbioru. Dlatego zwiększenie
-liczby części nie oznacza automatycznie większej skalowalności.
+Obecna wersja równoległa ma uzasadnienie dla wybranych profili `large` i `huge`, zwłaszcza
+gęstych oraz zawierających niewiele dużych części. Nie istnieje jedna najlepsza liczba
+procesów dla wszystkich danych; najczęściej wygrywają C8 lub C12 dla grafów spójnych,
+a C16 dla bardzo dużych grafów z kilkoma częściami.
 
-Ostatecznie benchmark potwierdza trzy różne ograniczenia:
-
-1. Dla małej pracy dominuje narzut uruchamiania i komunikacji.
-2. Dla grafu spójnego podział wyłącznie po składowych nie daje równoległości.
-3. Dla wielu małych składowych centralne przygotowanie i task shipping kosztują więcej
-   niż lokalny BFS workerów.
-
-Wniosek o przewadze równoległości jest więc uzasadniony tylko dla wybranych dużych,
-gęstych konfiguracji. Wniosek o przewadze obecnej wersji rozproszonej nie znajduje
-potwierdzenia w wynikach; implementacja jest wartościowa jako demonstracja architektury
-coordinator-worker i analiza narzutów, ale nie jako szybszy zamiennik baseline'u.
+Obecna wersja rozproszona nie jest szybszym zamiennikiem baseline'u. Jest demonstracją
+architektury coordinator-worker i pozwala zidentyfikować narzuty, lecz poprawa wydajności
+wymagałaby ograniczenia centralnego przygotowania danych, rozdzielenia grafu przed pomiarem,
+partycjonowania pracy wewnątrz pojedynczej składowej oraz zmniejszenia liczby przesyłanych
+kopii podgrafów.
 
 ## 10. AI use log
 
-| Etap                   | Do czego użyto AI                                     | Co zostało przyjęte | Co poprawiono ręcznie |
-|------------------------|-------------------------------------------------------| --- | --- |
-| [uzupełnić]            | [uzupełnić]                                           | [uzupełnić] | [uzupełnić] |
-| [Rozbudowa benchmarka] | [Rozbudowa skryptu generatora grafów, miernika czasu] | [uzupełnić] | [uzupełnić] |
+| Etap                                  | Do czego użyto AI                                                                                                                                                                                                                                                         | Co zostało przyjęte                                                                                                                                                                               | Co poprawiono ręcznie                                                                               |
+|---------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|-----------------------------------------------------------------------------------------------------|
+| Opracowanie planu działania           | Zredagowanie minimalnego zakresu zadania                                                                                                                                                                                                                                  | Rozdział 1.5 ORR_1_WCY22IL1S0.md                                                                                                                                                                  | Wyrażenia i sformułowania niebrzmiące poprawnie lub zrozumiale po polsku oraz usunięto zbędne uwagi |
+| Implementacja generatora grafów       | Implementacja funkcji do generowania grafów niespójnych oraz grafów typu grid, small world i bianconi-barabasi                                                                                                                                                            | grid.py, bb.py, small_world.py, inconsistent.py, generate_graphs.py                                                                                                                               | Nic                                                                                                 |
+| Implementacja wersji sekwencyjnej     | Doimplementowanie sprawdzania poprawności działania algorytmu i zwracanie ścieżki algorytmu BFS dla grafów niespójnych oraz zredagowanie podsumowania osiągniętych celów na danym etapie                                                                                  | baseline.py, utils/loader.py, utils/comparison.py, Rozdział 4 ORR_1_WCY22IL1S0.md                                                                                                                 | Wyrażenia i sformułowania niebrzmiące poprawnie lub zrozumiale po polsku                            |
+| Opracowanie planu wersji równoległej  | Zredagowanie opisu implementacji algorytmu opartego o przydzielanie frontierów do procesów                                                                                                                                                                                | Rozdział 5 ORR_1_WCY22IL1S0.md                                                                                                                                                                    | Wyrażenia i sformułowania niebrzmiące poprawnie lub zrozumiale po polsku oraz usunięto zbędne uwagi |
+| Implementacja wersji równoległej      | Pełna implementacja algorytmu wykorzystującego wiele rdzeni procesora działającego na współdzielonej pamięci oraz skryptu dokonującego pomiary czasu zarówno dla wersji sekwencyjnej, jak i równoległej oraz zredagowanie podsumowania osiągniętych celów na danym etapie | parallel.py, main.py, Rozdział 6 ORR_1_WCY22IL1S0.md                                                                                                                                              | Nic                                                                                                 |
+| Opracowanie planu wersji rozproszonej | Zredagowanie opisu implementacji algorytmu opartego o dzielenie grafu na spójne podgrafy (części) i przydzielanie ich do stacji                                                                                                                                           | Rozdział 7 ORR_1_WCY22IL1S0.md                                                                                                                                                                    | Wyrażenia i sformułowania niebrzmiące poprawnie lub zrozumiale po polsku oraz usunięto zbędne uwagi |
+| Implementacja wersji rozproszonej     | Pełna implementacja docker compose wystawiającego kilka węzłów komunikujących się ze sobą oraz zredagowanie podsumowania osiągniętych celów na danym etapie                                                                                                               | coordinator.py, coordinator/Dockerfile, graph_loader.py, shared/__init__.py, protocol.py, worker/Dockerfile, worker.py, docker-compose.yml, distributed/README.md, Rozdział 8 ORR_1_WCY22IL1S0.md | Nic                                                                                                 |
+| Rozbudowa benchmarka                  | Rozbudowa skryptu generatora grafów oraz aparatu mierniczego zarówno dla wersji równoległej, jak i rozproszonej tak, aby można było uruchomić pomiary czasu wszystkich grafów dla wielu konfiguracji za jednym poleceniem                                                 | generate_graphs.py, benchmark_scaling.py, docker-compose.scaling.yml                                                                                                                              | Nic                                                                                                 |
+| Analiza danych i wnioskowanie         | Implementacja skryptu agregującego wyniki uzyskane dla wielu konfiguracji i grafów. Czytelne przepisanie pomiarów z arkusza results/scaling/scaling_statistics.csv do tabelek w sprawozdaniu oraz zredagowanie wniosków na podstawie zagregowanych danych pomiarowych     | summarize_scaling.py, Rozdział 9, 11-13 ORR_1_WCY22IL1S0.md                                                                                                                                       | Zbędne uwagi                                                                                        |
 
 ## 11. Uruchomienie i reprodukowalność
 
 ### 11.1. Minimalna instrukcja uruchomienia
 
-```bash
-# 1. [uzupełnić]
-# 2. [uzupełnić]
-# 3. [uzupełnić]
+Wymagany jest Python 3.12 lub nowszy. Do uruchomienia wariantu rozproszonego i pełnego
+benchmarku skalowania potrzebny jest również działający Docker Desktop z Docker Compose v2.
+Poniższe polecenia należy wykonać w katalogu głównym repozytorium:
+
+```powershell
+# 1. Utworzenie środowiska i instalacja zależności
+python -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+
+# 2. Wygenerowanie grafów i wzorcowych wyników BFS
+.\.venv\Scripts\python.exe generate_graphs.py
+
+# 3. Lokalny benchmark sekwencyjny i równoległy
+.\.venv\Scripts\python.exe main.py --workers 8 --runs 3
+
+# 4. Pełny benchmark skalowania, łącznie z Dockerem
+.\.venv\Scripts\python.exe benchmark_scaling.py
+
+# 5. Agregacja wyników użytych w rozdziale 9
+.\.venv\Scripts\python.exe summarize_scaling.py
+```
+
+Pełny benchmark przetwarza 3010 grafów dla ośmiu konfiguracji wykonania, dlatego może
+trwać długo i wymagać znacznej ilości pamięci oraz miejsca na dysku. Jeżeli kompletne
+i poprawne pliki CSV już istnieją, `benchmark_scaling.py` wykorzystuje je ponownie.
+Opcja `--force` wymusza ponowne wykonanie wszystkich wskazanych konfiguracji.
+
+Do szybkiej kontroli działania można ograniczyć zestaw danych i konfiguracje:
+
+```powershell
+# Mały, deterministyczny zestaw grafów
+.\.venv\Scripts\python.exe generate_graphs.py --sizes tiny --instances 1
+
+# Wyłącznie lokalna konfiguracja równoległa
+.\.venv\Scripts\python.exe benchmark_scaling.py --parallel-only --processes 4 --runs 1
+
+# Wyłącznie konfiguracja rozproszona
+.\.venv\Scripts\python.exe benchmark_scaling.py --distributed-only --stations 2 --runs 1
+
+# Podgląd komend bez uruchamiania benchmarku
+.\.venv\Scripts\python.exe benchmark_scaling.py --dry-run
+```
+
+Sam wariant rozproszony można uruchomić bez skryptu skalowania:
+
+```powershell
+docker compose -f distributed/docker-compose.yml up --build --abort-on-container-exit
+docker compose -f distributed/docker-compose.yml down --remove-orphans
 ```
 
 ### 11.2. Struktura repozytorium / plików
 
-- `src/` lub odpowiednik: [uzupełnić]
-- `data/` lub odpowiednik: [uzupełnić]
-- skrypty benchmarkowe: [uzupełnić]
-- test poprawności: [uzupełnić]
+- `src/baseline.py` - sekwencyjny BFS używany jako baseline.
+- `src/parallel.py` - lokalna implementacja równoległa oparta na `multiprocessing`,
+  reprezentacji CSR i pamięci współdzielonej.
+- `distributed/coordinator/` - koordynator: detekcja składowych, przygotowanie podgrafów,
+  harmonogramowanie, wysyłanie zadań, scalanie i weryfikacja wyników.
+- `distributed/worker/` - serwer workera wykonujący sekwencyjny BFS na otrzymanym podgrafie.
+- `distributed/shared/protocol.py` - protokół TCP z nagłówkiem długości i serializacją
+  `pickle`.
+- `distributed/docker-compose.yml` - podstawowa konfiguracja coordinator-worker.
+- `distributed/docker-compose.scaling.yml` - konfiguracja używana w testach od 2 do
+  10 workerów.
+- `generators/` i `generate_graphs.py` - generatory grafów spójnych i niespójnych oraz
+  zapis wzorcowych wyników `*_expected.txt`.
+- `graphs/` - wejściowe grafy pogrupowane według spójności, generatora, liczby części,
+  gęstości i rozmiaru.
+- `utils/loader.py` - wykrywanie i wczytywanie grafów oraz wyników wzorcowych.
+- `utils/comparison.py` - porównanie odległości i składowych zwróconych przez algorytm
+  z wynikiem oczekiwanym.
+- `main.py` - benchmark sekwencyjny i równoległy dla pojedynczej liczby procesów.
+- `benchmark_scaling.py` - automatyzacja konfiguracji 4/8/12/16 procesów oraz
+  2/3/5/10 workerów.
+- `summarize_scaling.py` - agregacja pomiarów według liczby wierzchołków, profilu
+  gęstości i liczby części.
+- `results/scaling/` - surowe CSV dla każdej konfiguracji oraz
+  `scaling_statistics.csv` wykorzystany do utworzenia tabel w rozdziale 9.
+
+### 11.3. Weryfikacja poprawności
+
+Każdy wygenerowany graf ma odpowiadający plik `*_expected.txt`, zawierający oczekiwane
+składowe, wierzchołki startowe i odległości BFS. W każdym powtórzeniu wynik wersji
+sekwencyjnej, równoległej i rozproszonej jest porównywany z tym samym plikiem wzorcowym.
+CSV zawiera pola `correct` i `message`, a skrypt skalowania ponownie wykorzystuje istniejący
+plik tylko wtedy, gdy:
+
+- liczba grafów i prób jest kompletna,
+- liczba procesów lub workerów odpowiada konfiguracji,
+- wszystkie wyniki mają `correct=True`,
+- plik wynikowy nie jest starszy od grafów i plików wzorcowych.
+
+Skrypt `summarize_scaling.py` domyślnie pomija niepoprawne próby. Opcja
+`--include-incorrect` istnieje wyłącznie do celów diagnostycznych.
+
+### 11.4. Reprodukowalność wyników
+
+Generator wykorzystuje deterministyczny seed wyprowadzony z pełnej konfiguracji grafu
+i numeru instancji. Powtórne wygenerowanie danych tym samym kodem i parametrami powinno
+dać taki sam zestaw wejściowy. Dla pełnej reprodukcji należy zachować:
+
+- wersję kodu generatora i implementacji BFS,
+- parametry `--sizes`, `--types`, `--densities`, `--parts` i `--instances`,
+- liczbę prób oraz konfiguracje procesów i workerów,
+- wersję Pythona, Dockera i systemu operacyjnego,
+- źródłowe CSV z rekordami pojedynczych prób.
+
+Wyniki czasowe mogą się różnić między maszynami z powodu CPU, systemu, obciążenia,
+wersji interpretera i kosztu wirtualizacji Dockera. Odtwarzalne są przede wszystkim dane,
+poprawność wyników i procedura pomiarowa; identyczne czasy nie są gwarantowane.
 
 ## 12. Wnioski końcowe
 
 ### 12.1. Najkrótsze podsumowanie w 3 zdaniach
 
-[uzupełnić]
+Zaimplementowano i zweryfikowano trzy warianty BFS: sekwencyjny, lokalny równoległy oraz
+rozproszony coordinator-worker. Wersja równoległa daje przyspieszenie dla wybranych dużych
+i gęstych grafów z niewielką liczbą części, osiągając maksymalnie **2,598×** dla
+zagregowanego, wiarygodnego profilu `one part huge & dense`. Wersja rozproszona nie
+przekroczyła `1×`, ponieważ detekcja składowych, przygotowanie podgrafów i komunikacja
+TCP były droższe niż praca wykonana przez workery.
 
 ### 12.2. Co działa dobrze
 
-- [uzupełnić]
-- [uzupełnić]
+- Wszystkie warianty rozwiązują ten sam problem i są automatycznie porównywane z plikami
+  wzorcowymi dla 3010 grafów.
+- Generator obejmuje pięć rozmiarów, kilka profili gęstości, cztery rodziny struktur oraz
+  grafy z 1, 5, 50 i 500 częściami.
+- Benchmark automatyzuje wiele konfiguracji, zapisuje pojedyncze próby i pozwala wznowić
+  pracę przez ponowne wykorzystanie kompletnych CSV.
+- Lokalna implementacja równoległa potrafi wykorzystać większą ilość pracy w dużych,
+  gęstych grafach. Dla profilu `one part huge & dense` C12 osiągnęło **2,598×**, a dla
+  `few parts huge & dense` C16 osiągnęło **1,928×**.
+- Osobne pomiary faz wariantu rozproszonego umożliwiają wskazanie źródeł narzutu zamiast
+  ograniczenia analizy do całkowitego czasu.
+- Agregacja według rozmiaru, gęstości i liczby części upraszcza analizę oraz oddziela wpływ
+  parametrów danych od konkretnego generatora.
 
 ### 12.3. Co nie działa lub działa gorzej niż oczekiwano
 
-- [uzupełnić]
-- [uzupełnić]
+- Wariant rozproszony nie uzyskał przyspieszenia w żadnym z 272 zagregowanych porównań.
+  Najlepszy wynik wyniósł **0,586×**, a globalne ilorazy sum mieściły się między
+  **0,237×** i **0,288×**.
+- Podział pracy rozproszonej wyłącznie po składowych nie daje równoległości dla grafu
+  spójnego, ponieważ użyteczną pracę wykonuje wtedy jeden worker.
+- Centralna detekcja składowych i budowanie pełnych kopii podgrafów ograniczają
+  skalowalność. Przy wielu częściach rośnie również liczba operacji serializacji
+  i komunikacji.
+- Zwiększanie liczby procesów lub workerów nie daje monotonicznej poprawy. Dodatkowe
+  jednostki wykonawcze mogą zwiększyć koszt IPC, synchronizacji i oczekiwania.
+- Raportowany `par_time` nie obejmuje konwersji do CSR ani kopiowania do pamięci
+  współdzielonej, dlatego nie jest pełnym czasem end-to-end.
+- Wspólny czas `Seq` w tabeli zagregowanej łączy pomiary hosta i kontenera. Jest użyteczny
+  do syntetycznego porównania profili, ale bardzo wysokie speedupy dla grafów `tiny`
+  należy traktować jako niestabilne i podatne na rozgrzewanie środowiska.
+- Uśrednienie po strukturach upraszcza wnioski, ale może ukrywać różnice między
+  generatorami i wartości odstające pojedynczych instancji.
 
 ### 12.4. Najważniejsza lekcja techniczna
 
-[uzupełnić]
+Równoległość jest opłacalna tylko wtedy, gdy ilość użytecznej pracy przypadającej na jedno
+zadanie jest wyraźnie większa od kosztu przygotowania danych, synchronizacji i komunikacji.
+Samo dodanie procesów lub workerów nie zapewnia skalowania: należy dobrać ziarnistość zadań,
+ograniczyć centralne operacje sekwencyjne i mierzyć pełną ścieżkę end-to-end. W przypadku
+BFS szczególnie ważny jest sposób partycjonowania grafu - podział wyłącznie po składowych
+jest prosty i poprawny, lecz nie wykorzystuje wielu workerów dla grafów spójnych.
 
 ## 13. Checklista przed oddaniem
 
-- [ ] Temat, wejście, wyjście i kryterium poprawności są jasno opisane.
-- [ ] Istnieje działający baseline sekwencyjny.
-- [ ] Istnieje test poprawności lub inny wiarygodny sposób weryfikacji wyniku.
-- [ ] Wersja równoległa rozwiązuje ten sam problem co wersja sekwencyjna.
-- [ ] Wersja rozproszona lub distributed-like rozwiązuje ten sam problem co baseline.
-- [ ] Wszystkie porównania wykonano na porównywalnych danych.
-- [ ] W benchmarku użyto kilku rozmiarów danych lub liczby zadań.
-- [ ] W benchmarku użyto kilku konfiguracji wykonania.
-- [ ] Wnioski opisują nie tylko wynik, ale też źródła narzutu.
-- [ ] AI use log został uzupełniony.
-- [ ] Da się wskazać minimalny sposób uruchomienia rozwiązania.
+- [x] Temat, wejście, wyjście i kryterium poprawności są jasno opisane.
+- [x] Istnieje działający baseline sekwencyjny.
+- [x] Istnieje test poprawności lub inny wiarygodny sposób weryfikacji wyniku.
+- [x] Wersja równoległa rozwiązuje ten sam problem co wersja sekwencyjna.
+- [x] Wersja rozproszona lub distributed-like rozwiązuje ten sam problem co baseline.
+- [x] Wszystkie porównania wykonano na tych samych grafach i wynikach wzorcowych.
+- [x] W benchmarku użyto pięciu rozmiarów danych: od 50 do 500 000 wierzchołków.
+- [x] W benchmarku użyto konfiguracji 4/8/12/16 procesów i 2/3/5/10 workerów.
+- [x] Wnioski opisują wyniki oraz koszty przygotowania, synchronizacji i komunikacji.
+- [x] AI use log został uzupełniony.
+- [x] Minimalny i pełny sposób uruchomienia opisano w rozdziale 11.1.

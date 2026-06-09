@@ -4,13 +4,9 @@
     <option name="autoReloadType" value="SELECTIVE" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Wyniki">
+    <list default="true" id="57f11d40-4027-453b-8b28-bdce38e392a6" name="Changes" comment="Przepisano wyniki do ORR_1_WCY22IL1S0.md">
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/ORR_1_WCY22IL1S0.md" beforeDir="false" afterPath="$PROJECT_DIR$/ORR_1_WCY22IL1S0.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/debug.py" beforeDir="false" />
-      <change beforePath="$PROJECT_DIR$/distributed/README.md" beforeDir="false" afterPath="$PROJECT_DIR$/distributed/README.md" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/distributed/coordinator/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/distributed/coordinator/Dockerfile" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/distributed/worker/Dockerfile" beforeDir="false" afterPath="$PROJECT_DIR$/distributed/worker/Dockerfile" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -18,7 +14,7 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="EmbeddingIndexingInfo">
-    <option name="cachedIndexableFilesCount" value="6679" />
+    <option name="cachedIndexableFilesCount" value="6700" />
   </component>
   <component name="FileTemplateManagerImpl">
     <option name="RECENT_TEMPLATES">
@@ -28,6 +24,11 @@
     </option>
   </component>
   <component name="Git.Settings">
+    <option name="RECENT_BRANCH_BY_REPOSITORY">
+      <map>
+        <entry key="$PROJECT_DIR$" value="645aabe28d3fd30a319f19d297f4c661b56e923f" />
+      </map>
+    </option>
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
   </component>
   <component name="GitHubPullRequestSearchHistory">{
@@ -81,7 +82,7 @@
     &quot;ai.playground.ignore.import.keys.banner.in.settings&quot;: &quot;true&quot;,
     &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
     &quot;dart.analysis.tool.window.visible&quot;: &quot;false&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;update&quot;,
+    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
     &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
     &quot;last_opened_file_path&quot;: &quot;C:/Users/haloj/OneDrive - Wojskowa Akademia Techniczna/Wypracowania/W_Semestr VIII/ORR/Parallel_Distributed_BFS&quot;,
     &quot;node.js.detected.package.eslint&quot;: &quot;true&quot;,
@@ -346,7 +347,15 @@
       <option name="project" value="LOCAL" />
       <updated>1780915967956</updated>
     </task>
-    <option name="localTasksCounter" value="20" />
+    <task id="LOCAL-00020" summary="Przepisano wyniki do ORR_1_WCY22IL1S0.md">
+      <option name="closed" value="true" />
+      <created>1780991873171</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
+      <option name="project" value="LOCAL" />
+      <updated>1780991873171</updated>
+    </task>
+    <option name="localTasksCounter" value="21" />
     <servers />
   </component>
   <component name="TypeScriptGeneratedFilesManager">
@@ -383,7 +392,8 @@
     <MESSAGE value="Wielokrotne uruchamianie grafu" />
     <MESSAGE value="Poprawka na seed w wielu instancjach" />
     <MESSAGE value="Wyniki" />
-    <option name="LAST_COMMIT_MESSAGE" value="Wyniki" />
+    <MESSAGE value="Przepisano wyniki do ORR_1_WCY22IL1S0.md" />
+    <option name="LAST_COMMIT_MESSAGE" value="Przepisano wyniki do ORR_1_WCY22IL1S0.md" />
   </component>
   <component name="com.intellij.coverage.CoverageDataManagerImpl">
     <SUITE FILE_PATH="coverage/Parallel_Distributed_BFS$__init__.coverage" NAME="__init__ Coverage Results" MODIFIED="1775639510677" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="false" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/src" />
