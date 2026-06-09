@@ -112,8 +112,23 @@ logów nie zniekształcała wyników. Można go zmienić zmienną
 
 ### Skalowanie workerów
 
-Aby zmienić liczbę workerów, edytuj `docker-compose.yml` i zmienną `WORKERS`
-w sekcji coordinator.
+Pełny test skalowania dla 4, 8, 12 i 16 procesów oraz 2, 3, 5 i 10 workerów
+uruchamia skrypt z katalogu głównego:
+
+```powershell
+python benchmark_scaling.py
+```
+
+Wyniki trafiają do `results/scaling/`. Skrypt automatycznie pomija kompletne,
+poprawne CSV zgodne z aktualnym zestawem grafów. Istniejące wyniki bazowe dla
+16 procesów i 3 workerów są używane ponownie. Wymuszenie ponownego wykonania:
+
+```powershell
+python benchmark_scaling.py --force
+```
+
+Samodzielna konfiguracja `docker-compose.scaling.yml` zawiera maksymalnie
+10 nazwanych workerów i jest używana automatycznie przez skrypt.
 
 ## Struktura plików
 

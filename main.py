@@ -4,6 +4,7 @@ BFS benchmark: repeated sequential and parallel runs with CSV export.
 Usage:
     python main.py
     python main.py --runs 5 --csv results/parallel_bfs.csv
+    python main.py --workers 8 --runs 3
 """
 
 import argparse
@@ -41,6 +42,12 @@ def parse_args():
         "--csv",
         default=DEFAULT_CSV_PATH,
         help=f"CSV output path (default: {DEFAULT_CSV_PATH}).",
+    )
+    parser.add_argument(
+        "--workers",
+        type=positive_int,
+        default=mp.cpu_count(),
+        help=f"Number of worker processes (default: {mp.cpu_count()}).",
     )
     return parser.parse_args()
 
@@ -143,7 +150,7 @@ def export_csv(path, results, num_workers, runs):
 
 def main():
     args = parse_args()
-    num_workers = mp.cpu_count()
+    num_workers = args.workers
 
     print("=" * 80)
     print("  PARALLEL BFS BENCHMARK + WERYFIKACJA POPRAWNOŚCI")

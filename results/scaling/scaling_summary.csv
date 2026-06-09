@@ -1,3 +1,9 @@
 ﻿variant,workers,configurations,sequential_sum_s,variant_sum_s,global_speedup,all_correct,source_csv
-parallel,16,3010,296.65241696666175,346.1616710666659,0.8569764990229973,True,results\parallel_bfs_results.csv
-distributed,3,3010,391.3109633429838,1415.3515757346715,0.2764761562086541,True,results\distributed_bfs_results.csv
+parallel,4,3010,313.05770280019584,398.3214460668114,0.785942373656893,True,results\scaling\parallel_processes_4.csv
+parallel,8,3010,299.28085170006136,350.9432922665374,0.8527897762831751,True,results\scaling\parallel_processes_8.csv
+parallel,12,3010,317.6015464333889,350.73491906654283,0.9055315828793546,True,results\scaling\parallel_processes_12.csv
+parallel,16,3010,296.65241696666175,346.1616710666659,0.8569764990229973,True,results\scaling\parallel_processes_16.csv
+distributed,2,3010,329.2921509872463,1260.2714891135624,0.2612866781734947,True,results\scaling\distributed_stations_2.csv
+distributed,3,3010,391.3109633429838,1415.3515757346715,0.2764761562086541,True,results\scaling\distributed_stations_3.csv
+distributed,5,3010,335.53559508999086,1216.7950733919822,0.27575357792552496,True,results\scaling\distributed_stations_5.csv
+distributed,10,3010,331.0734839277434,1203.3003896051634,0.27513785151883635,True,results\scaling\distributed_stations_10.csv
